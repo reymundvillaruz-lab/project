@@ -177,7 +177,11 @@ export function ViewReportDialog({
                   </tr>
                   <tr className="border-b border-slate-100 py-1">
                     <td className="py-1 text-slate-600">BCG Vaccination Rate</td>
-                    <td className="py-1 text-right font-mono">100%</td>
+                    <td className="py-1 text-right font-mono">
+                      {reportData.immunizations.antigens.find((a) =>
+                        a.antigen.includes("BCG")
+                      )?.coveragePercentage ?? 0}%
+                    </td>
                   </tr>
                   <tr className="py-1">
                     <td className="py-1 text-slate-600">Defaulter / Dropout Rate</td>
@@ -287,15 +291,15 @@ export function ViewReportDialog({
           <div className="pt-8 border-t-2 border-slate-900 grid grid-cols-2 gap-12 text-center text-xs">
             <div className="space-y-1">
               <div className="border-b border-slate-800 pb-1 font-semibold text-slate-900">
-                Elena Gomez, RN
+                Public Health Nurse (PHN)
               </div>
-              <p className="text-[11px] text-slate-500">Public Health Nurse / Clinic Coordinator</p>
+              <p className="text-[11px] text-slate-500">Clinic Coordinator / Field Health Services</p>
             </div>
             <div className="space-y-1">
               <div className="border-b border-slate-800 pb-1 font-semibold text-slate-900">
-                Dr. Ramon Santos, MD
+                {reportData.healthOfficer}
               </div>
-              <p className="text-[11px] text-slate-500">Municipal Health Officer &bull; License No. 082419</p>
+              <p className="text-[11px] text-slate-500">Attending Health Officer &bull; Primary Health Care</p>
             </div>
           </div>
         </div>

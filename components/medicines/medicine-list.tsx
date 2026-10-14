@@ -165,15 +165,6 @@ export function MedicineList({
               </Button>
             )}
           </div>
-
-          <Button
-            size="sm"
-            onClick={onNewMedicine}
-            className="bg-teal-700 hover:bg-teal-800 text-xs shadow-xs h-8.5 gap-1.5 shrink-0"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Add Medicine Item
-          </Button>
         </div>
       </CardHeader>
 

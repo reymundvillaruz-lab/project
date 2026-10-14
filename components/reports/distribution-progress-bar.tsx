@@ -38,14 +38,20 @@ export function DistributionProgressBar({
 
       {/* Multi-segment Meter */}
       <div className="flex h-3 w-full rounded-full overflow-hidden bg-slate-100 p-0.5 gap-0.5">
-        {segments.map((seg, idx) => (
-          <div
-            key={idx}
-            className={`h-full rounded-xs transition-all duration-300 ${seg.colorClass}`}
-            style={{ width: `${Math.max(seg.percentage, 1)}%` }}
-            title={`${seg.label}: ${seg.count.toLocaleString()} (${seg.percentage}%)`}
-          />
-        ))}
+        {totalValue && totalValue > 0 ? (
+          segments.map((seg, idx) =>
+            seg.percentage > 0 ? (
+              <div
+                key={idx}
+                className={`h-full rounded-xs transition-all duration-300 ${seg.colorClass}`}
+                style={{ width: `${seg.percentage}%` }}
+                title={`${seg.label}: ${seg.count.toLocaleString()} (${seg.percentage}%)`}
+              />
+            ) : null
+          )
+        ) : (
+          <div className="w-full h-full bg-slate-200/60 rounded-xs" />
+        )}
       </div>
 
       {/* Accessible Legend */}

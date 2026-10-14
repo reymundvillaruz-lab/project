@@ -232,3 +232,26 @@ export interface PatientImmunizationAnalyticsRow {
   providerName: string;
   updatedAt: string;
 }
+
+export const IMMUNIZATION_STORAGE_KEY = "bhcms_immunization_records_v1";
+
+export function getStoredImmunizationRecords(): NipPatientRecord[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(IMMUNIZATION_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveStoredImmunizationRecords(records: NipPatientRecord[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(IMMUNIZATION_STORAGE_KEY, JSON.stringify(records));
+  } catch (e) {
+    console.error("Failed to save immunization records to storage", e);
+  }
+}

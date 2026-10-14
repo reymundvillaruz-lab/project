@@ -17,7 +17,12 @@ import {
   FPFollowUp,
   FPFollowUpStatus,
 } from "@/types/family-planning";
-import { calculateFPDashboardStats, computeFollowUpStatus } from "@/lib/family-planning-utils";
+import {
+  calculateFPDashboardStats,
+  computeFollowUpStatus,
+  getStoredFPClients,
+  saveStoredFPClients,
+} from "@/lib/family-planning-utils";
 import { FPDashboardStatsView } from "./fp-dashboard-stats";
 import { FPClientList } from "./fp-client-list";
 import { FPClientDetail } from "./fp-client-detail";
@@ -27,9 +32,21 @@ import { AddFPServiceDialog } from "./add-fp-service-dialog";
 import { ScheduleFPFollowUpDialog } from "./schedule-fp-followup-dialog";
 
 export function FamilyPlanningView() {
-  // STRICT SESSION STATE: In-memory React state only. Zero persistence.
-  // Starts completely empty with zero fabricated records.
   const [clients, setClients] = React.useState<FPClient[]>([]);
+  const isHydratedRef = React.useRef(false);
+
+  // Hydrate from storage on mount
+  React.useEffect(() => {
+    setClients(getStoredFPClients());
+    isHydratedRef.current = true;
+  }, []);
+
+  // Persist to storage on change
+  React.useEffect(() => {
+    if (isHydratedRef.current) {
+      saveStoredFPClients(clients);
+    }
+  }, [clients]);
 
   // Navigation / View state
   const [activeMainTab, setActiveMainTab] = React.useState<"registry" | "followups">("registry");

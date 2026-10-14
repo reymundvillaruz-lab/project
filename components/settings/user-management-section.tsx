@@ -26,78 +26,49 @@ import { Badge } from "@/components/ui/badge";
 import { HealthStaffUser, StaffRole, StaffStatus } from "@/types/settings";
 import { AddUserDialog } from "./add-user-dialog";
 
-// Initial mock staff users focusing on Administrator and BHW
-const INITIAL_STAFF_USERS: HealthStaffUser[] = [
-  {
-    id: "usr-001",
-    name: "Maria Elena Santos, RN",
-    role: "Administrator",
-    roleTitle: "Barangay Health Center Administrator / Nurse Supervisor",
-    email: "admin@barangayhealth.gov.ph",
-    phone: "0917-888-2468",
-    assignedStation: "Triage, Clinical Consultations & Station Admin",
-    status: "Active",
-    lastActive: "Active Now",
-  },
-  {
-    id: "usr-002",
-    name: "Dr. Ramon Santos, MD",
-    role: "Administrator",
-    roleTitle: "Municipal Health Officer / Physician Administrator",
-    email: "dr.santos@barangayhealth.gov.ph",
-    phone: "0918-555-1234",
-    assignedStation: "Medical Consultations & Minor Surgery",
-    status: "Active",
-    lastActive: "15 mins ago",
-  },
-  {
-    id: "usr-003",
-    name: "Rosario Cruz",
-    role: "BHW",
-    roleTitle: "Barangay Health Worker - Purok 1 Lead",
-    email: "rosario.cruz@barangayhealth.gov.ph",
-    phone: "0920-333-7890",
-    assignedStation: "Purok 1 Community Outreach & Vital Signs",
-    status: "Active",
-    lastActive: "1 hour ago",
-  },
-  {
-    id: "usr-004",
-    name: "Josefina Ramos",
-    role: "BHW",
-    roleTitle: "Barangay Health Worker - Maternal & Child Desk",
-    email: "josefina.ramos@barangayhealth.gov.ph",
-    phone: "0921-444-5678",
-    assignedStation: "Purok 2 Maternal Care & Family Planning Follow-up",
-    status: "Active",
-    lastActive: "3 hours ago",
-  },
-  {
-    id: "usr-005",
-    name: "Carmen Villanueva",
-    role: "BHW",
-    roleTitle: "Barangay Health Worker - Immunization Tracker",
-    email: "carmen.v@barangayhealth.gov.ph",
-    phone: "0922-777-9012",
-    assignedStation: "Purok 3 Immunization Desk & Field Census",
-    status: "On Leave",
-    lastActive: "2 days ago",
-  },
-  {
-    id: "usr-006",
-    name: "Ana Dimagiba",
-    role: "BHW",
-    roleTitle: "Barangay Health Worker - Nutrition & Senior Care",
-    email: "ana.d@barangayhealth.gov.ph",
-    phone: "0923-888-3456",
-    assignedStation: "Purok 4 Nutrition & Senior Citizens Desk",
-    status: "Inactive",
-    lastActive: "1 week ago",
-  },
-];
+// Strictly EMPTY - Zero mock staff users
+const INITIAL_STAFF_USERS: HealthStaffUser[] = [];
+
+const STAFF_STORAGE_KEY = "bhcms_staff_users_v1";
+
+export function getStoredStaffUsers(): HealthStaffUser[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(STAFF_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveStoredStaffUsers(users: HealthStaffUser[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(STAFF_STORAGE_KEY, JSON.stringify(users));
+  } catch (e) {
+    console.error("Failed to save staff users to storage", e);
+  }
+}
 
 export function UserManagementSection() {
   const [users, setUsers] = React.useState<HealthStaffUser[]>(INITIAL_STAFF_USERS);
+  const isHydratedRef = React.useRef(false);
+
+  // Hydrate from storage on mount
+  React.useEffect(() => {
+    setUsers(getStoredStaffUsers());
+    isHydratedRef.current = true;
+  }, []);
+
+  // Persist to storage on change
+  React.useEffect(() => {
+    if (isHydratedRef.current) {
+      saveStoredStaffUsers(users);
+    }
+  }, [users]);
+
   const [searchTerm, setSearchTerm] = React.useState("");
   const [roleFilter, setRoleFilter] = React.useState<string>("ALL");
   const [statusFilter, setStatusFilter] = React.useState<string>("ALL");

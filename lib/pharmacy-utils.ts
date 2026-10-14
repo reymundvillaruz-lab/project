@@ -144,9 +144,9 @@ export const COMMON_FREQUENCIES = [
 ];
 
 export const STANDARD_PRESCRIBERS = [
-  "Dr. Ramon Santos, MD (Municipal Health Officer)",
-  "Dr. Angela Lim, MD (Visiting Physician)",
-  "Midwife Marites Reyes, RM (Barangay Midwife)",
-  "Nurse Elena Gomez, RN (Health Center Nurse)",
-  "BHW Rosario Cruz (Health Station Volunteer)",
+  "Municipal Health Officer / Physician",
+  "Attending Health Center Physician",
+  "Rural Health Midwife, RM",
+  "Public Health Nurse, RN",
+  "Barangay Health Worker (BHW) On-Duty",
 ];

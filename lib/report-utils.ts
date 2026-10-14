@@ -2,7 +2,25 @@ import {
   ReportDateFilter,
   ReportDateRange,
   ComprehensiveReportData,
+  MorbidityItem,
+  VaccineAntigenItem,
+  FPMethodDistributionItem,
+  TopPrescribedMedItem,
 } from "@/types/reports";
+import { MockPatient, getStoredPatients } from "@/lib/mock-data/patients";
+import { MockConsultation, getStoredConsultations } from "@/lib/mock-data/consultations";
+import { MaternalRecord } from "@/types/maternal-care";
+import { getInitialMaternalRecords } from "@/lib/mock-data/maternal-care";
+import { NipPatientRecord, getStoredImmunizationRecords } from "@/components/immunization/types";
+import { FPClient } from "@/types/family-planning";
+import { getStoredFPClients } from "@/lib/family-planning-utils";
+import { Appointment } from "@/types/appointment";
+import { getStoredAppointments } from "@/lib/appointment-utils";
+import { Medicine, Prescription } from "@/types/pharmacy";
+import {
+  getStoredPharmacyMedicines,
+  getStoredPharmacyPrescriptions,
+} from "@/context/pharmacy-context";
 
 export function getTodayDateString(): string {
   const today = new Date();
@@ -78,85 +96,518 @@ export function getReportDateRange(
   }
 }
 
+export function isDateInPeriod(
+  dateStr: string | undefined,
+  startDate: string,
+  endDate: string
+): boolean {
+  if (!dateStr) return false;
+  const d = dateStr.slice(0, 10);
+  return d >= startDate && d <= endDate;
+}
+
+export interface ReportDataSources {
+  patients?: MockPatient[];
+  consultations?: MockConsultation[];
+  maternalRecords?: MaternalRecord[];
+  immunizationRecords?: NipPatientRecord[];
+  fpClients?: FPClient[];
+  appointments?: Appointment[];
+  medicines?: Medicine[];
+  prescriptions?: Prescription[];
+  facilityName?: string;
+  healthOfficer?: string;
+}
+
 /**
- * Builds the official DOH FHSIS statistical metrics.
- * Multipliers scale appropriately according to reporting timeframe (day, week, month, year)
+ * Builds the official DOH FHSIS statistical metrics directly from stored records.
+ * STRICTLY NO MOCK DATA. Zero fabricated numbers or multiplier factors.
  */
 export function getComprehensiveReportData(
   filter: ReportDateFilter,
   customStart?: string,
-  customEnd?: string
+  customEnd?: string,
+  sources?: ReportDataSources
 ): ComprehensiveReportData {
   const period = getReportDateRange(filter, customStart, customEnd);
 
-  // Timeframe multiplier: day=1, week=6, month=26, year=312
-  let factor = 26;
-  if (filter === "today") factor = 1;
-  else if (filter === "week") factor = 6;
-  else if (filter === "month") factor = 26;
-  else if (filter === "year") factor = 312;
-  else if (filter === "custom") {
-    const s = new Date(period.startDate);
-    const e = new Date(period.endDate);
-    const diffDays = Math.max(1, Math.round((e.getTime() - s.getTime()) / (1000 * 3600 * 24)) + 1);
-    factor = diffDays;
-  }
+  // Retrieve actual data from provided sources or active storage
+  const patients = sources?.patients ?? getStoredPatients();
+  const consultations = sources?.consultations ?? getStoredConsultations();
+  const maternalRecords = sources?.maternalRecords ?? getInitialMaternalRecords();
+  const immunizationRecords = sources?.immunizationRecords ?? getStoredImmunizationRecords();
+  const fpClients = sources?.fpClients ?? getStoredFPClients();
+  const appointments = sources?.appointments ?? getStoredAppointments();
+  const medicines = sources?.medicines ?? getStoredPharmacyMedicines();
+  const prescriptions = sources?.prescriptions ?? getStoredPharmacyPrescriptions();
 
-  // 1. Patient Demographics & Registration
-  const baseRegistered = 3450;
-  const newRegistrations = Math.round(1.5 * factor);
+  // 1. Patient Demographics & Population Coverage
+  const totalRegistered = patients.length;
+  const newRegistrationsThisPeriod = patients.filter((p) => {
+    const regDate = p.createdAt || p.updatedAt;
+    return isDateInPeriod(regDate, period.startDate, period.endDate);
+  }).length;
 
-  // 2. Consultations
-  const totalConsultations = Math.round(18 * factor);
-  const routine = Math.round(totalConsultations * 0.72);
-  const priority = Math.round(totalConsultations * 0.22);
-  const urgent = Math.max(0, totalConsultations - routine - priority);
+  let under5 = 0;
+  let schoolAge = 0;
+  let womenReproductiveAge = 0;
+  let adults = 0;
+  let seniors = 0;
 
-  // 3. Immunization
-  const targetInfants = Math.max(1, Math.round(3.8 * (factor / 26)));
-  const fic = Math.round(targetInfants * 0.94);
+  let philhealthMembers = 0;
+  let nhts4PsBeneficiaries = 0;
+  let seniorCitizenMembers = 0;
+  let pwdMembers = 0;
 
-  // 4. Maternal Care
-  const expectedPregnancies = Math.max(1, Math.round(3.2 * (factor / 26)));
-  const ancFirstTrim = Math.round(expectedPregnancies * 0.88);
-  const anc4Visits = Math.round(expectedPregnancies * 0.82);
+  patients.forEach((p) => {
+    const age = typeof p.age === "number" ? p.age : 0;
+    if (age < 5) {
+      under5++;
+    } else if (age <= 17) {
+      schoolAge++;
+    } else if (age >= 60) {
+      seniors++;
+    } else {
+      adults++;
+    }
 
-  // 5. Family Planning
-  const activeFPUsers = 485;
-  const newAcceptors = Math.round(1.2 * factor);
+    if (p.sex === "Female" && age >= 15 && age <= 49) {
+      womenReproductiveAge++;
+    }
 
-  // 6. Appointments
-  const totalAppointments = Math.round(14 * factor);
-  const completedApts = Math.round(totalAppointments * 0.85);
-  const noShowApts = Math.round(totalAppointments * 0.08);
-  const cancelledApts = Math.round(totalAppointments * 0.04);
-  const pendingApts = Math.max(0, totalAppointments - completedApts - noShowApts - cancelledApts);
+    if (p.phicNo && p.phicNo !== "None" && p.phicNo !== "N/A" && p.phicNo.trim() !== "") {
+      philhealthMembers++;
+    }
+    if (p.isIp === "IP") {
+      nhts4PsBeneficiaries++;
+    }
+    if (age >= 60) {
+      seniorCitizenMembers++;
+    }
+    if (p.pwdId && p.pwdId !== "None" && p.pwdId !== "N/A" && p.pwdId.trim() !== "") {
+      pwdMembers++;
+    }
+  });
 
-  // 7. Medicines / Prescriptions
-  const totalRxIssued = Math.round(16 * factor);
-  const totalRxDispensed = Math.round(totalRxIssued * 0.95);
+  const calcDemographicPct = (count: number) =>
+    totalRegistered > 0 ? Math.round((count / totalRegistered) * 1000) / 10 : 0;
+
+  // 2. Clinical Consultations & Morbidities
+  const periodConsultations = consultations.filter((c) =>
+    isDateInPeriod(c.date, period.startDate, period.endDate)
+  );
+  const totalConsultations = periodConsultations.length;
+
+  let routine = 0;
+  let priority = 0;
+  let urgent = 0;
+  let treatedSentHome = 0;
+  let referredHospital = 0;
+  let followUpRequired = 0;
+
+  const morbidityMap: Record<string, { count: number; icdCode?: string }> = {};
+
+  periodConsultations.forEach((c) => {
+    const vt = (c.visitType || "").toLowerCase();
+    const reason = (c.reasonForVisit || "").toLowerCase();
+    const notes = (c.notes || "").toLowerCase();
+    const diag = (c.diagnosis || "").trim();
+
+    if (
+      vt.includes("urgent") ||
+      reason.includes("emergency") ||
+      notes.includes("urgent") ||
+      notes.includes("emergency")
+    ) {
+      urgent++;
+    } else if (vt.includes("follow") || vt.includes("priority")) {
+      priority++;
+    } else {
+      routine++;
+    }
+
+    if (c.followUp?.required === "Yes" || c.status === "Follow-up") {
+      followUpRequired++;
+    } else if (notes.includes("refer") || diag.toLowerCase().includes("refer")) {
+      referredHospital++;
+    } else {
+      treatedSentHome++;
+    }
+
+    if (diag && diag !== "None" && diag !== "N/A") {
+      const icdMatch = diag.match(/\(([A-Z][0-9]+(\.[0-9]+)?)\)/);
+      if (!morbidityMap[diag]) {
+        morbidityMap[diag] = {
+          count: 0,
+          icdCode: icdMatch ? icdMatch[1] : undefined,
+        };
+      }
+      morbidityMap[diag].count++;
+    }
+  });
+
+  const topMorbidities: MorbidityItem[] = Object.entries(morbidityMap)
+    .sort((a, b) => b[1].count - a[1].count)
+    .slice(0, 6)
+    .map(([disease, info]) => ({
+      disease,
+      cases: info.count,
+      percentage:
+        totalConsultations > 0 ? Math.round((info.count / totalConsultations) * 100) : 0,
+      icdCode: info.icdCode,
+    }));
+
+  // 3. Immunization (EPI)
+  const targetInfants = immunizationRecords.length;
+  let fullyImmunizedCount = 0;
+  let defaulterCount = 0;
+
+  let bcgDoses = 0;
+  let hepbDoses = 0;
+  let pentaDoses = 0;
+  let opvDoses = 0;
+  let pcvDoses = 0;
+  let mcvDoses = 0;
+
+  immunizationRecords.forEach((r) => {
+    const v = r.vaccines || {};
+    const hasBcg = v.bcg?.status === "Completed" || Boolean(v.bcg?.dateGiven);
+    const hasHepb = v.hepb?.status === "Completed" || Boolean(v.hepb?.dateGiven);
+    const hasPenta =
+      v.penta1?.status === "Completed" ||
+      v.penta2?.status === "Completed" ||
+      v.penta3?.status === "Completed";
+    const hasOpv =
+      v.opv1?.status === "Completed" ||
+      v.opv2?.status === "Completed" ||
+      v.ipv?.status === "Completed";
+    const hasPcv =
+      v.pcv1?.status === "Completed" ||
+      v.pcv2?.status === "Completed" ||
+      v.pcv3?.status === "Completed";
+    const hasMcv = v.mcv1?.status === "Completed" || v.mcv2?.status === "Completed";
+
+    if (hasBcg) bcgDoses++;
+    if (hasHepb) hepbDoses++;
+    if (hasPenta) pentaDoses++;
+    if (hasOpv) opvDoses++;
+    if (hasPcv) pcvDoses++;
+    if (hasMcv) mcvDoses++;
+
+    const isFullyImmunized =
+      hasBcg &&
+      hasHepb &&
+      v.penta3?.status === "Completed" &&
+      v.opv3?.status === "Completed" &&
+      hasMcv;
+
+    if (isFullyImmunized) {
+      fullyImmunizedCount++;
+    }
+
+    const hasOverdue = Object.values(v).some((entry) => entry?.status === "Overdue");
+    if (hasOverdue) {
+      defaulterCount++;
+    }
+  });
+
+  const calcAntigenCoverage = (doses: number) =>
+    targetInfants > 0 ? Math.min(100, Math.round((doses / targetInfants) * 100)) : 0;
+
+  const antigens: VaccineAntigenItem[] = [
+    {
+      antigen: "BCG (Bacillus Calmette–Guérin at birth)",
+      targetPopulation: targetInfants,
+      dosesAdministered: bcgDoses,
+      coveragePercentage: calcAntigenCoverage(bcgDoses),
+    },
+    {
+      antigen: "Hepatitis B (Within 24 hrs of birth)",
+      targetPopulation: targetInfants,
+      dosesAdministered: hepbDoses,
+      coveragePercentage: calcAntigenCoverage(hepbDoses),
+    },
+    {
+      antigen: "Pentavalent (DTP-HepB-Hib 1, 2, 3)",
+      targetPopulation: targetInfants,
+      dosesAdministered: pentaDoses,
+      coveragePercentage: calcAntigenCoverage(pentaDoses),
+    },
+    {
+      antigen: "OPV / IPV (Polio Vaccine Series)",
+      targetPopulation: targetInfants,
+      dosesAdministered: opvDoses,
+      coveragePercentage: calcAntigenCoverage(opvDoses),
+    },
+    {
+      antigen: "PCV (Pneumococcal Conjugate 1, 2, 3)",
+      targetPopulation: targetInfants,
+      dosesAdministered: pcvDoses,
+      coveragePercentage: calcAntigenCoverage(pcvDoses),
+    },
+    {
+      antigen: "MCV 1 & 2 (Measles, Mumps & Rubella)",
+      targetPopulation: targetInfants,
+      dosesAdministered: mcvDoses,
+      coveragePercentage: calcAntigenCoverage(mcvDoses),
+    },
+  ];
+
+  const ficCoverageRate =
+    targetInfants > 0 ? Math.round((fullyImmunizedCount / targetInfants) * 1000) / 10 : 0;
+  const defaulterRate =
+    targetInfants > 0 ? Math.round((defaulterCount / targetInfants) * 1000) / 10 : 0;
+
+  // 4. Maternal Health & Safe Motherhood
+  const totalExpectedPregnancies = maternalRecords.length;
+  let firstTrimesterBooking = 0;
+  let fourOrMoreAntenatalVisits = 0;
+  let tetanusVaccinatedMothers = 0;
+  let ironFolicAcidSupplemented = 0;
+  let highRiskPregnanciesIdentified = 0;
+  let postpartumVisitsCompleted = 0;
+  let completedDeliveries = 0;
+
+  maternalRecords.forEach((m) => {
+    const visits = m.prenatalVisits || [];
+    if (
+      (m.gestationalAgeWeeks && m.gestationalAgeWeeks <= 12) ||
+      visits.some((v) => v.trimester === "1st Trimester")
+    ) {
+      firstTrimesterBooking++;
+    }
+    if (visits.length >= 4) {
+      fourOrMoreAntenatalVisits++;
+    }
+    if (m.tetanusToxoidStatus && m.tetanusToxoidStatus !== "None") {
+      tetanusVaccinatedMothers++;
+    }
+    if (
+      m.ironFolicAcidSupplementation &&
+      m.ironFolicAcidSupplementation !== "None" &&
+      m.ironFolicAcidSupplementation.trim() !== ""
+    ) {
+      ironFolicAcidSupplemented++;
+    }
+    const notes = (m.generalNotes || "").toLowerCase();
+    if (
+      (m.age && (m.age < 18 || m.age >= 35)) ||
+      (m.gravida && m.gravida >= 5) ||
+      notes.includes("high-risk") ||
+      notes.includes("high risk")
+    ) {
+      highRiskPregnanciesIdentified++;
+    }
+    if (
+      m.status === "Completed" ||
+      visits.some((v) => (v.visitNotes || "").toLowerCase().includes("postpartum"))
+    ) {
+      postpartumVisitsCompleted++;
+    }
+    if (m.status === "Completed") {
+      completedDeliveries++;
+    }
+  });
+
+  const facilityBasedDeliveryRate =
+    totalExpectedPregnancies > 0
+      ? Math.round((completedDeliveries / totalExpectedPregnancies) * 100)
+      : 0;
+
+  // 5. Family Planning & Reproductive Health
+  const activeFPUsers = fpClients.filter(
+    (c) => c.status === "Active User" || (c.status !== "Discontinued" && Boolean(c.currentMethod))
+  ).length;
+
+  let newAcceptors = 0;
+  let methodChangers = 0;
+  let dropoutsRestart = 0;
+
+  const fpMethodDistributionConfigs: {
+    method: string;
+    keywords: string[];
+    category: "Modern Artificial" | "Long-Acting & Permanent" | "Natural / LAM";
+  }[] = [
+    {
+      method: "Combined Oral Contraceptives (COC)",
+      keywords: ["coc", "pill", "oral contraceptive"],
+      category: "Modern Artificial",
+    },
+    {
+      method: "DMPA Injectables (Depo)",
+      keywords: ["dmpa", "depo", "injectable"],
+      category: "Modern Artificial",
+    },
+    {
+      method: "Subdermal Implants",
+      keywords: ["implant", "subdermal", "norplant", "jadelle"],
+      category: "Long-Acting & Permanent",
+    },
+    {
+      method: "Intrauterine Device (IUD)",
+      keywords: ["iud", "intrauterine"],
+      category: "Long-Acting & Permanent",
+    },
+    {
+      method: "Male Condoms",
+      keywords: ["condom", "barrier"],
+      category: "Modern Artificial",
+    },
+    {
+      method: "Lactational Amenorrhea (LAM) / SDM",
+      keywords: ["lam", "lactational", "sdm", "natural", "calendar", "rhythm"],
+      category: "Natural / LAM",
+    },
+  ];
+
+  const methodDistribution: FPMethodDistributionItem[] = fpMethodDistributionConfigs.map(
+    (config) => {
+      const matchingCount = fpClients.filter((c) => {
+        const methodStr = (c.currentMethod || "").toLowerCase();
+        return config.keywords.some((kw) => methodStr.includes(kw));
+      }).length;
+
+      const percentage =
+        activeFPUsers > 0 ? Math.round((matchingCount / activeFPUsers) * 1000) / 10 : 0;
+
+      return {
+        method: config.method,
+        usersCount: matchingCount,
+        percentage,
+        category: config.category,
+      };
+    }
+  );
+
+  fpClients.forEach((c) => {
+    const cType = (c.clientType || "").toLowerCase();
+    const cStatus = (c.status || "").toLowerCase();
+
+    if (cType.includes("new")) {
+      newAcceptors++;
+    } else if (cType.includes("changing") || cType.includes("changer")) {
+      methodChangers++;
+    } else if (cStatus.includes("discontinued") || cType.includes("restart")) {
+      dropoutsRestart++;
+    }
+  });
+
+  // 6. Appointments & Utilization
+  const periodAppointments = appointments.filter((a) =>
+    isDateInPeriod(a.date, period.startDate, period.endDate)
+  );
+  const totalScheduled = periodAppointments.length;
+  let completedVisits = 0;
+  let confirmedUpcoming = 0;
+  let pendingScheduled = 0;
+  let noShowCount = 0;
+  let cancelledCount = 0;
+
+  periodAppointments.forEach((a) => {
+    switch (a.status) {
+      case "Completed":
+        completedVisits++;
+        break;
+      case "Confirmed":
+        confirmedUpcoming++;
+        break;
+      case "Scheduled":
+        pendingScheduled++;
+        break;
+      case "No Show":
+        noShowCount++;
+        break;
+      case "Cancelled":
+        cancelledCount++;
+        break;
+    }
+  });
+
+  const completionRate =
+    totalScheduled > 0 ? Math.round((completedVisits / totalScheduled) * 100) : 0;
+  const noShowRate =
+    totalScheduled > 0 ? Math.round((noShowCount / totalScheduled) * 100) : 0;
+
+  // 7. Pharmacy, Inventory & Prescriptions
+  const periodPrescriptions = prescriptions.filter((p) =>
+    isDateInPeriod(p.date || p.createdAt, period.startDate, period.endDate)
+  );
+  const totalPrescriptionsIssued = periodPrescriptions.length;
+  const totalPrescriptionsDispensed = periodPrescriptions.filter(
+    (p) => p.status === "Dispensed"
+  ).length;
+
+  const dispensationFulfillmentRate =
+    totalPrescriptionsIssued > 0
+      ? Math.round((totalPrescriptionsDispensed / totalPrescriptionsIssued) * 100)
+      : 0;
+
+  const medMap: Record<string, { count: number; qty: number; unit: string }> = {};
+  periodPrescriptions.forEach((rx) => {
+    const name = rx.medicine?.trim() || "Unspecified Medicine";
+    if (!medMap[name]) {
+      medMap[name] = { count: 0, qty: 0, unit: rx.dosage || "Units" };
+    }
+    medMap[name].count++;
+    medMap[name].qty += rx.quantityToDispense || 1;
+  });
+
+  const topPrescribedMedicines: TopPrescribedMedItem[] = Object.entries(medMap)
+    .sort((a, b) => b[1].count - a[1].count)
+    .slice(0, 6)
+    .map(([name, info]) => ({
+      name,
+      prescriptionsCount: info.count,
+      quantityDispensed: info.qty,
+      unit: info.unit,
+    }));
+
+  let adequateStock = 0;
+  let lowStockWarnings = 0;
+  let outOfStockDepleted = 0;
+  let expiredItems = 0;
+
+  medicines.forEach((m) => {
+    switch (m.status) {
+      case "Available":
+        adequateStock++;
+        break;
+      case "Low Stock":
+        lowStockWarnings++;
+        break;
+      case "Out of Stock":
+        outOfStockDepleted++;
+        break;
+      case "Expired":
+        expiredItems++;
+        break;
+    }
+  });
 
   return {
     period,
     generatedDate: getTodayDateString(),
-    facilityName: "Barangay Health Center",
-    healthOfficer: "Dr. Ramon Santos, MD • Municipal Health Officer",
+    facilityName: sources?.facilityName || "Barangay Health Center",
+    healthOfficer: sources?.healthOfficer || "Municipal Health Officer (MHO)",
 
     patients: {
-      totalRegistered: baseRegistered + (filter === "today" ? 0 : Math.round(newRegistrations * 0.5)),
-      newRegistrationsThisPeriod: newRegistrations,
+      totalRegistered,
+      newRegistrationsThisPeriod,
       demographics: {
-        under5: { count: 412, percentage: 12.0 },
-        schoolAge: { count: 685, percentage: 19.8 },
-        womenReproductiveAge: { count: 980, percentage: 28.4 },
-        adults: { count: 965, percentage: 28.0 },
-        seniors: { count: 408, percentage: 11.8 },
+        under5: { count: under5, percentage: calcDemographicPct(under5) },
+        schoolAge: { count: schoolAge, percentage: calcDemographicPct(schoolAge) },
+        womenReproductiveAge: {
+          count: womenReproductiveAge,
+          percentage: calcDemographicPct(womenReproductiveAge),
+        },
+        adults: { count: adults, percentage: calcDemographicPct(adults) },
+        seniors: { count: seniors, percentage: calcDemographicPct(seniors) },
       },
       socialCoverage: {
-        philhealthMembers: 2480,
-        nhts4PsBeneficiaries: 520,
-        seniorCitizenMembers: 408,
-        pwdMembers: 84,
+        philhealthMembers,
+        nhts4PsBeneficiaries,
+        seniorCitizenMembers,
+        pwdMembers,
       },
     },
 
@@ -167,93 +618,65 @@ export function getComprehensiveReportData(
         priority,
         urgent,
       },
-      topMorbidities: [
-        { disease: "Acute Upper Respiratory Tract Infection (URTI)", cases: Math.round(totalConsultations * 0.38), percentage: 38, icdCode: "J06.9" },
-        { disease: "Essential Primary Hypertension", cases: Math.round(totalConsultations * 0.22), percentage: 22, icdCode: "I10" },
-        { disease: "Acute Gastroenteritis & Diarrhea", cases: Math.round(totalConsultations * 0.12), percentage: 12, icdCode: "A09" },
-        { disease: "Skin Infections / Allergic Contact Dermatitis", cases: Math.round(totalConsultations * 0.10), percentage: 10, icdCode: "L30.9" },
-        { disease: "Type 2 Diabetes Mellitus", cases: Math.round(totalConsultations * 0.09), percentage: 9, icdCode: "E11" },
-        { disease: "Musculoskeletal & Tension Headache", cases: Math.round(totalConsultations * 0.09), percentage: 9, icdCode: "M79.1" },
-      ],
+      topMorbidities,
       outcomes: {
-        treatedSentHome: Math.round(totalConsultations * 0.88),
-        referredHospital: Math.round(totalConsultations * 0.05),
-        followUpRequired: Math.round(totalConsultations * 0.07),
+        treatedSentHome,
+        referredHospital,
+        followUpRequired,
       },
     },
 
     immunizations: {
       targetInfants,
-      fullyImmunizedChildren: fic,
-      ficCoverageRate: 94.2,
-      defaulterRate: 1.8,
-      antigens: [
-        { antigen: "BCG (Bacillus Calmette–Guérin at birth)", targetPopulation: targetInfants, dosesAdministered: targetInfants, coveragePercentage: 100 },
-        { antigen: "Hepatitis B (Within 24 hrs of birth)", targetPopulation: targetInfants, dosesAdministered: Math.round(targetInfants * 0.98), coveragePercentage: 98 },
-        { antigen: "Pentavalent (DTP-HepB-Hib 1, 2, 3)", targetPopulation: targetInfants, dosesAdministered: Math.round(targetInfants * 0.96), coveragePercentage: 96 },
-        { antigen: "OPV / IPV (Polio Vaccine Series)", targetPopulation: targetInfants, dosesAdministered: Math.round(targetInfants * 0.95), coveragePercentage: 95 },
-        { antigen: "PCV (Pneumococcal Conjugate 1, 2, 3)", targetPopulation: targetInfants, dosesAdministered: Math.round(targetInfants * 0.94), coveragePercentage: 94 },
-        { antigen: "MCV 1 & 2 (Measles, Mumps & Rubella)", targetPopulation: targetInfants, dosesAdministered: Math.round(targetInfants * 0.93), coveragePercentage: 93 },
-      ],
+      fullyImmunizedChildren: fullyImmunizedCount,
+      ficCoverageRate,
+      defaulterRate,
+      antigens,
     },
 
     maternalCare: {
-      totalExpectedPregnancies: expectedPregnancies,
-      firstTrimesterBooking: ancFirstTrim,
-      fourOrMoreAntenatalVisits: anc4Visits,
-      tetanusVaccinatedMothers: Math.round(expectedPregnancies * 0.95),
-      ironFolicAcidSupplemented: Math.round(expectedPregnancies * 0.96),
-      highRiskPregnanciesIdentified: Math.round(expectedPregnancies * 0.12),
-      postpartumVisitsCompleted: Math.round(expectedPregnancies * 0.89),
-      facilityBasedDeliveryRate: 100.0,
+      totalExpectedPregnancies,
+      firstTrimesterBooking,
+      fourOrMoreAntenatalVisits,
+      tetanusVaccinatedMothers,
+      ironFolicAcidSupplemented,
+      highRiskPregnanciesIdentified,
+      postpartumVisitsCompleted,
+      facilityBasedDeliveryRate,
     },
 
     familyPlanning: {
       totalCurrentUsers: activeFPUsers,
       newAcceptors,
-      methodChangers: Math.round(newAcceptors * 0.25),
-      dropoutsRestart: Math.round(newAcceptors * 0.15),
-      unmetNeedPercentage: 4.8,
-      methodDistribution: [
-        { method: "Combined Oral Contraceptives (COC)", usersCount: 168, percentage: 34.6, category: "Modern Artificial" },
-        { method: "DMPA Injectables (Depo)", usersCount: 132, percentage: 27.2, category: "Modern Artificial" },
-        { method: "Subdermal Implants", usersCount: 78, percentage: 16.1, category: "Long-Acting & Permanent" },
-        { method: "Intrauterine Device (IUD)", usersCount: 46, percentage: 9.5, category: "Long-Acting & Permanent" },
-        { method: "Male Condoms", usersCount: 38, percentage: 7.8, category: "Modern Artificial" },
-        { method: "Lactational Amenorrhea (LAM) / SDM", usersCount: 23, percentage: 4.8, category: "Natural / LAM" },
-      ],
+      methodChangers,
+      dropoutsRestart,
+      unmetNeedPercentage: 0,
+      methodDistribution,
     },
 
     appointments: {
-      totalScheduled: totalAppointments,
-      completedVisits: completedApts,
-      confirmedUpcoming: Math.round(pendingApts * 0.6),
-      pendingScheduled: Math.round(pendingApts * 0.4),
-      noShowCount: noShowApts,
-      cancelledCount: cancelledApts,
-      completionRate: totalAppointments > 0 ? Math.round((completedApts / totalAppointments) * 100) : 0,
-      noShowRate: totalAppointments > 0 ? Math.round((noShowApts / totalAppointments) * 100) : 0,
+      totalScheduled,
+      completedVisits,
+      confirmedUpcoming,
+      pendingScheduled,
+      noShowCount,
+      cancelledCount,
+      completionRate,
+      noShowRate,
     },
 
     medicines: {
-      totalPrescriptionsIssued: totalRxIssued,
-      totalPrescriptionsDispensed: totalRxDispensed,
-      dispensationFulfillmentRate: totalRxIssued > 0 ? Math.round((totalRxDispensed / totalRxIssued) * 100) : 100,
+      totalPrescriptionsIssued,
+      totalPrescriptionsDispensed,
+      dispensationFulfillmentRate,
       inventorySummary: {
-        totalItems: 48,
-        adequateStock: 39,
-        lowStockWarnings: 6,
-        outOfStockDepleted: 2,
-        expiredItems: 1,
+        totalItems: medicines.length,
+        adequateStock,
+        lowStockWarnings,
+        outOfStockDepleted,
+        expiredItems,
       },
-      topPrescribedMedicines: [
-        { name: "Paracetamol 500mg Tablet", prescriptionsCount: Math.round(totalRxIssued * 0.28), quantityDispensed: Math.round(totalRxIssued * 0.28 * 15), unit: "Tablets" },
-        { name: "Amoxicillin 500mg Capsule", prescriptionsCount: Math.round(totalRxIssued * 0.22), quantityDispensed: Math.round(totalRxIssued * 0.22 * 21), unit: "Capsules" },
-        { name: "Amlodipine 5mg Tablet", prescriptionsCount: Math.round(totalRxIssued * 0.18), quantityDispensed: Math.round(totalRxIssued * 0.18 * 30), unit: "Tablets" },
-        { name: "Oral Rehydration Salts (ORS) Sachet", prescriptionsCount: Math.round(totalRxIssued * 0.12), quantityDispensed: Math.round(totalRxIssued * 0.12 * 4), unit: "Sachets" },
-        { name: "Salbutamol 2mg/5ml Syrup (60ml)", prescriptionsCount: Math.round(totalRxIssued * 0.10), quantityDispensed: Math.round(totalRxIssued * 0.10 * 1), unit: "Bottles" },
-        { name: "Multivitamins with Iron & Zinc", prescriptionsCount: Math.round(totalRxIssued * 0.10), quantityDispensed: Math.round(totalRxIssued * 0.10 * 30), unit: "Tablets" },
-      ],
+      topPrescribedMedicines,
     },
   };
 }
@@ -294,9 +717,13 @@ export function generateCSVReportContent(data: ComprehensiveReportData): string 
   lines.push(`Referred to Hospital,${data.consultations.outcomes.referredHospital}`);
   lines.push(`Follow-up Scheduled,${data.consultations.outcomes.followUpRequired}`);
   lines.push(`Top Morbidities:`);
-  data.consultations.topMorbidities.forEach((m) => {
-    lines.push(`"${m.disease} (${m.icdCode})",${m.cases},${m.percentage}%`);
-  });
+  if (data.consultations.topMorbidities.length > 0) {
+    data.consultations.topMorbidities.forEach((m) => {
+      lines.push(`"${m.disease}${m.icdCode ? ` (${m.icdCode})` : ""}",${m.cases},${m.percentage}%`);
+    });
+  } else {
+    lines.push(`"No clinical morbidities recorded in this period",0,0%`);
+  }
   lines.push(``);
 
   // 3. Immunization
@@ -359,6 +786,14 @@ export function generateCSVReportContent(data: ComprehensiveReportData): string 
   lines.push(`Low Stock Items,${data.medicines.inventorySummary.lowStockWarnings}`);
   lines.push(`Out of Stock Items,${data.medicines.inventorySummary.outOfStockDepleted}`);
   lines.push(`Expired Quarantine Items,${data.medicines.inventorySummary.expiredItems}`);
+  lines.push(`Top Prescribed Medicines:`);
+  if (data.medicines.topPrescribedMedicines.length > 0) {
+    data.medicines.topPrescribedMedicines.forEach((med) => {
+      lines.push(`"${med.name}",${med.prescriptionsCount},"${med.quantityDispensed} ${med.unit}"`);
+    });
+  } else {
+    lines.push(`"No prescriptions recorded in this period",0,-`);
+  }
 
   return lines.join("\n");
 }

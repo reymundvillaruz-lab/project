@@ -13,27 +13,13 @@ interface MainLayoutProps {
 
 export function MainLayout({ children }: MainLayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false);
-
-  const toggleSidebarCollapse = React.useCallback(() => {
-    setIsSidebarCollapsed((prev) => !prev);
-  }, []);
 
   return (
     <PharmacyProvider>
       <div className="flex min-h-screen bg-slate-50 text-slate-900 font-sans antialiased">
         {/* Desktop Persistent Sidebar */}
-        <div
-          className={cn(
-            "hidden lg:flex lg:shrink-0 lg:fixed lg:inset-y-0 lg:z-40 transition-all duration-300 ease-in-out",
-            isSidebarCollapsed ? "lg:w-[72px]" : "lg:w-64"
-          )}
-        >
-          <Sidebar
-            className="w-full"
-            isCollapsed={isSidebarCollapsed}
-            onToggleCollapse={toggleSidebarCollapse}
-          />
+        <div className="hidden lg:flex lg:shrink-0 lg:fixed lg:inset-y-0 lg:z-40 lg:w-64">
+          <Sidebar className="w-full" />
         </div>
 
         {/* Mobile Responsive Navigation Drawer (Sheet) */}
@@ -43,18 +29,9 @@ export function MainLayout({ children }: MainLayoutProps) {
         />
 
         {/* Main Layout Area: Header + Content + Footer */}
-        <div
-          className={cn(
-            "flex flex-1 flex-col min-w-0 transition-all duration-300 ease-in-out",
-            isSidebarCollapsed ? "lg:pl-[72px]" : "lg:pl-64"
-          )}
-        >
+        <div className="flex flex-1 flex-col min-w-0 lg:pl-64">
           {/* Top Header */}
-          <TopHeader
-            onMobileMenuOpen={() => setMobileMenuOpen(true)}
-            isSidebarCollapsed={isSidebarCollapsed}
-            onToggleSidebarCollapse={toggleSidebarCollapse}
-          />
+          <TopHeader onMobileMenuOpen={() => setMobileMenuOpen(true)} />
 
           {/* Dynamic Page Content */}
           <main className="flex-1 p-4 sm:p-6 lg:p-8">

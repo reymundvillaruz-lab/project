@@ -13,11 +13,17 @@ import {
   PatientImmunizationAnalyticsRow,
   PatientImmunizationStatus,
   NIP_VACCINE_LIST,
+  getStoredImmunizationRecords,
+  saveStoredImmunizationRecords,
 } from "@/components/immunization/types";
 
 export default function ImmunizationPage() {
-  // Pure frontend state for the current session - strictly NO mock or seed data
   const [patientRecords, setPatientRecords] = React.useState<NipPatientRecord[]>([]);
+
+  // Hydrate from storage on mount
+  React.useEffect(() => {
+    setPatientRecords(getStoredImmunizationRecords());
+  }, []);
 
   // Dialog states
   const [isFormOpen, setIsFormOpen] = React.useState(false);
@@ -190,12 +196,15 @@ export default function ImmunizationPage() {
   const handleSaveRecord = (savedRecord: NipPatientRecord) => {
     setPatientRecords((prev) => {
       const index = prev.findIndex((r) => r.id === savedRecord.id);
+      let updated: NipPatientRecord[];
       if (index >= 0) {
-        const updated = [...prev];
+        updated = [...prev];
         updated[index] = savedRecord;
-        return updated;
+      } else {
+        updated = [savedRecord, ...prev];
       }
-      return [savedRecord, ...prev];
+      saveStoredImmunizationRecords(updated);
+      return updated;
     });
   };
 

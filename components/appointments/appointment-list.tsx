@@ -222,15 +222,6 @@ export function AppointmentList({
             Completed ({timeframeCounts.completed})
           </Button>
         </div>
-
-        <Button
-          size="sm"
-          onClick={onNewAppointment}
-          className="bg-teal-700 hover:bg-teal-800 text-xs shadow-xs h-8 gap-1.5"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          New Appointment
-        </Button>
       </div>
 
       {/* Filter Card */}

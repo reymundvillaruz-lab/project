@@ -103,26 +103,6 @@ export function Sidebar({
               </div>
             )}
           </Link>
-
-          {/* Desktop Collapse Toggle Button */}
-          {!isMobileDrawer && onToggleCollapse && (
-            <button
-              type="button"
-              onClick={onToggleCollapse}
-              className={cn(
-                "hidden lg:flex h-7 w-7 items-center justify-center rounded-md text-slate-400 hover:bg-slate-800 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500",
-                effectiveCollapsed && "mx-auto mt-2"
-              )}
-              title={effectiveCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-              aria-label={effectiveCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            >
-              {effectiveCollapsed ? (
-                <PanelLeftOpen className="h-4 w-4" />
-              ) : (
-                <PanelLeftClose className="h-4 w-4" />
-              )}
-            </button>
-          )}
         </div>
 
         {/* Station Indicator (Shown when expanded) */}

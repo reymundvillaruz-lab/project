@@ -22,6 +22,17 @@ export function AccessibleBarChart({
   maxValue,
   valueSuffix = "",
 }: AccessibleBarChartProps) {
+  if (items.length === 0) {
+    return (
+      <div className="space-y-2" role="region" aria-label={title || "Bar chart data"}>
+        {title && <h4 className="text-xs font-semibold text-slate-700">{title}</h4>}
+        <div className="p-3.5 rounded-lg bg-slate-50 border border-slate-200 text-center text-xs text-slate-500">
+          No records logged for this period.
+        </div>
+      </div>
+    );
+  }
+
   const calculatedMax =
     maxValue || Math.max(...items.map((item) => item.value), 1);
 
@@ -76,7 +87,7 @@ export function AccessibleBarChart({
                   className={`h-full rounded-full transition-all duration-500 ${
                     item.barColor || item.colorClass || "bg-teal-600"
                   }`}
-                  style={{ width: `${Math.max(percentage, 2)}%` }}
+                  style={{ width: `${item.value > 0 ? Math.max(percentage, 2) : 0}%` }}
                 />
               </div>
             </div>

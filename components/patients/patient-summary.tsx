@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Users, UserCheck, UserPlus, CalendarClock } from "lucide-react";
+import { Users, UserCheck, UserPlus } from "lucide-react";
 import { StatCard } from "@/components/ui/stat-card";
 import { MockPatient } from "@/lib/mock-data/patients";
 
@@ -12,12 +12,16 @@ interface PatientSummaryProps {
 export function PatientSummary({ patients }: PatientSummaryProps) {
   const total = patients.length;
   const active = patients.filter((p) => p.status === "Active").length;
-  // Fictional metrics based on patient records
-  const newThisMonth = Math.max(1, Math.round(total * 0.35));
-  const upcomingAppointments = patients.filter((p) => p.appointments && p.appointments.length > 0).length;
+  
+  // Calculate new enrollments this month
+  const now = new Date();
+  const curMonth = String(now.getMonth() + 1).padStart(2, "0");
+  const curYear = String(now.getFullYear());
+  const curPrefix = `${curYear}-${curMonth}`;
+  const newThisMonth = patients.filter((p) => (p.createdAt || p.lastVisit || "").startsWith(curPrefix)).length;
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
       <StatCard
         title="Total Patients"
         value={total.toLocaleString()}
@@ -38,13 +42,6 @@ export function PatientSummary({ patients }: PatientSummaryProps) {
         subtitle="Enrolled in current period"
         icon={<UserPlus className="h-5 w-5 text-sky-700" />}
         variant="info"
-      />
-      <StatCard
-        title="Upcoming Appointments"
-        value={upcomingAppointments}
-        subtitle="Patients queued for visits"
-        icon={<CalendarClock className="h-5 w-5 text-amber-700" />}
-        variant="warning"
       />
     </div>
   );

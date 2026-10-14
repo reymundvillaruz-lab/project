@@ -39,39 +39,8 @@ export const EMPTY_DASHBOARD_DATA: DashboardData = {
   upcomingActivities: [],
 };
 
-// Public health schedule template (official DOH programs)
-export const INITIAL_UPCOMING_ACTIVITIES: UpcomingActivityItem[] = [
-  {
-    id: "act-001",
-    title: "Expanded Program on Immunization (EPI Day)",
-    date: "Every Wednesday & Friday",
-    time: "8:00 AM – 12:00 PM",
-    location: "Health Station Immunization Room",
-    targetGroup: "Infants (0–12 months) • BCG, Pentavalent, OPV/IPV, PCV",
-    category: "IMMUNIZATION",
-    badgeLabel: "EPI Schedule",
-  },
-  {
-    id: "act-002",
-    title: "Maternal Health & Safe Motherhood Consultation",
-    date: "Every Tuesday & Thursday",
-    time: "8:00 AM – 3:00 PM",
-    location: "Maternal Care Clinic",
-    targetGroup: "Pregnant Mothers (Prenatal & Postnatal Care)",
-    category: "MATERNAL",
-    badgeLabel: "Maternal Care",
-  },
-  {
-    id: "act-003",
-    title: "Non-Communicable Disease (PHILPEN) Risk Assessment",
-    date: "Daily (Monday to Friday)",
-    time: "8:00 AM – 5:00 PM",
-    location: "Triage & PHILPEN Screening Station",
-    targetGroup: "Adults 20+ yrs (Blood Pressure, Blood Glucose, BMI)",
-    category: "SENIOR_CARE",
-    badgeLabel: "PHILPEN Screening",
-  },
-];
+// Strictly EMPTY - Zero mock activities
+export const INITIAL_UPCOMING_ACTIVITIES: UpcomingActivityItem[] = [];
 
 export const INITIAL_PATIENT_STATISTICS: PatientStatisticsData = {
   totalPatients: 0,

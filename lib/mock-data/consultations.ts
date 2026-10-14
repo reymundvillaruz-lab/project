@@ -46,21 +46,22 @@ export interface PatientOption {
   contact: string;
 }
 
-export const MOCK_PROVIDERS: string[] = [
-  "Dr. Alcantara (Municipal Physician)",
-  "Nurse Joy Ramos, RN",
-  "Elena Flores, BHW",
-  "Maria Santos, BHW",
-  "Ana Reyes, BHW",
+export const STANDARD_PROVIDERS: string[] = [
+  "Municipal Health Officer / Physician",
+  "Public Health Nurse, RN",
+  "Rural Health Midwife, RM",
+  "Barangay Health Worker (BHW)",
   "Barangay Health Center Staff",
 ];
+export const MOCK_PROVIDERS: string[] = STANDARD_PROVIDERS;
 
-export const MOCK_VISIT_TYPES: VisitType[] = [
+export const STANDARD_VISIT_TYPES: VisitType[] = [
   "General Consultation",
   "Follow-up",
   "Health Check",
   "Other",
 ];
+export const MOCK_VISIT_TYPES: VisitType[] = STANDARD_VISIT_TYPES;
 
 // Strictly EMPTY - No mock consultations
 export const INITIAL_MOCK_CONSULTATIONS: MockConsultation[] = [];

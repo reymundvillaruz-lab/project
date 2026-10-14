@@ -69,7 +69,7 @@ export function PatientStatisticsCard({ data }: PatientStatisticsCardProps) {
           <DistributionProgressBar
             title="Population Age Cohort Breakdown"
             segments={ageSegments}
-            totalLabel="Total Sampled"
+            totalLabel="Total Registered"
             totalValue={data.totalRegistered}
           />
         </div>

@@ -10,37 +10,39 @@ interface AppointmentStatisticsCardProps {
 }
 
 export function AppointmentStatisticsCard({ data }: AppointmentStatisticsCardProps) {
-  const total = data.totalScheduled || 1;
+  const total = data.totalScheduled;
+  const calcAptPct = (count: number) =>
+    total > 0 ? Math.round((count / total) * 100) : 0;
 
   const appointmentSegments: SegmentItem[] = [
     {
       label: "Completed Visits",
       count: data.completedVisits,
-      percentage: Math.round((data.completedVisits / total) * 100),
+      percentage: calcAptPct(data.completedVisits),
       colorClass: "bg-emerald-500",
     },
     {
       label: "Confirmed Upcoming",
       count: data.confirmedUpcoming,
-      percentage: Math.round((data.confirmedUpcoming / total) * 100),
+      percentage: calcAptPct(data.confirmedUpcoming),
       colorClass: "bg-teal-500",
     },
     {
       label: "Pending Scheduled",
       count: data.pendingScheduled,
-      percentage: Math.round((data.pendingScheduled / total) * 100),
+      percentage: calcAptPct(data.pendingScheduled),
       colorClass: "bg-sky-500",
     },
     {
       label: "No Show",
       count: data.noShowCount,
-      percentage: Math.round((data.noShowCount / total) * 100),
+      percentage: calcAptPct(data.noShowCount),
       colorClass: "bg-amber-500",
     },
     {
       label: "Cancelled",
       count: data.cancelledCount,
-      percentage: Math.round((data.cancelledCount / total) * 100),
+      percentage: calcAptPct(data.cancelledCount),
       colorClass: "bg-rose-400",
     },
   ];

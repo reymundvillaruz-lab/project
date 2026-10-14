@@ -311,16 +311,6 @@ export function FPClientList({
                   Clear Filters
                 </Button>
               )}
-
-              {/* New Record Button */}
-              <Button
-                size="sm"
-                onClick={onNewClient}
-                className="bg-teal-700 hover:bg-teal-800 text-xs shadow-xs h-9 ml-auto"
-              >
-                <Plus className="h-3.5 w-3.5 mr-1" />
-                New Family Planning Record
-              </Button>
             </div>
           </div>
 

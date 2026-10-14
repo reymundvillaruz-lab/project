@@ -13,6 +13,8 @@ export interface MockPatient {
   address: string;
   contact: string;
   lastVisit: string;
+  createdAt?: string;
+  updatedAt?: string;
   status: "Active" | "Inactive" | "Follow-up Needed";
   phicNo: string;
   civilStatus: string;

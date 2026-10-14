@@ -16,7 +16,12 @@ import {
   AppointmentStatus,
   AppointmentDashboardStats,
 } from "@/types/appointment";
-import { calculateAppointmentStats, getTodayDateString } from "@/lib/appointment-utils";
+import {
+  calculateAppointmentStats,
+  getTodayDateString,
+  getStoredAppointments,
+  saveStoredAppointments,
+} from "@/lib/appointment-utils";
 import { AppointmentDashboardStatsView } from "./appointment-dashboard-stats";
 import { AppointmentList } from "./appointment-list";
 import { AppointmentCalendarView } from "./appointment-calendar-view";
@@ -24,9 +29,12 @@ import { NewAppointmentDialog } from "./new-appointment-dialog";
 import { AppointmentDetailDialog } from "./appointment-detail-dialog";
 
 export function AppointmentView() {
-  // STRICT SESSION STATE: In-memory React state. Zero persistence. Zero mock data.
-  // Starts completely empty with zero fabricated records.
   const [appointments, setAppointments] = React.useState<Appointment[]>([]);
+
+  // Hydrate from storage on mount
+  React.useEffect(() => {
+    setAppointments(getStoredAppointments());
+  }, []);
 
   // Navigation / View modes
   const [viewMode, setViewMode] = React.useState<"list" | "calendar">("list");
@@ -71,19 +79,21 @@ export function AppointmentView() {
   const handleSaveAppointment = (savedApt: Appointment) => {
     setAppointments((prev) => {
       const existsIndex = prev.findIndex((apt) => apt.id === savedApt.id);
+      let updated: Appointment[];
       if (existsIndex >= 0) {
-        const updated = [...prev];
+        updated = [...prev];
         updated[existsIndex] = savedApt;
-        return updated;
       } else {
-        return [savedApt, ...prev];
+        updated = [savedApt, ...prev];
       }
+      saveStoredAppointments(updated);
+      return updated;
     });
   };
 
   const handleUpdateStatus = (appointmentId: string, status: AppointmentStatus) => {
     setAppointments((prev) => {
-      return prev.map((apt) => {
+      const updated = prev.map((apt) => {
         if (apt.id === appointmentId) {
           return {
             ...apt,
@@ -92,11 +102,17 @@ export function AppointmentView() {
         }
         return apt;
       });
+      saveStoredAppointments(updated);
+      return updated;
     });
   };
 
   const handleDeleteAppointment = (appointmentId: string) => {
-    setAppointments((prev) => prev.filter((apt) => apt.id !== appointmentId));
+    setAppointments((prev) => {
+      const updated = prev.filter((apt) => apt.id !== appointmentId);
+      saveStoredAppointments(updated);
+      return updated;
+    });
     setIsDetailDialogOpen(false);
     setSelectedAppointmentId(null);
   };

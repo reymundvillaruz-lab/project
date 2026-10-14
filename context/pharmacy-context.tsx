@@ -27,14 +27,80 @@ interface PharmacyContextType {
   deletePrescription: (prescriptionId: string) => void;
 }
 
+export const PHARMACY_MEDS_STORAGE_KEY = "bhcms_pharmacy_medicines_v1";
+export const PHARMACY_RX_STORAGE_KEY = "bhcms_pharmacy_prescriptions_v1";
+
+export function getStoredPharmacyMedicines(): Medicine[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(PHARMACY_MEDS_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveStoredPharmacyMedicines(medicines: Medicine[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(PHARMACY_MEDS_STORAGE_KEY, JSON.stringify(medicines));
+  } catch (e) {
+    console.error("Failed to save pharmacy medicines to storage", e);
+  }
+}
+
+export function getStoredPharmacyPrescriptions(): Prescription[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(PHARMACY_RX_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveStoredPharmacyPrescriptions(prescriptions: Prescription[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(PHARMACY_RX_STORAGE_KEY, JSON.stringify(prescriptions));
+  } catch (e) {
+    console.error("Failed to save pharmacy prescriptions to storage", e);
+  }
+}
+
 const PharmacyContext = React.createContext<PharmacyContextType | undefined>(
   undefined
 );
 
 export function PharmacyProvider({ children }: { children: React.ReactNode }) {
-  // STRICT SESSION STATE: In-memory React state only. Zero persistence. Zero mock data.
   const [medicines, setMedicines] = React.useState<Medicine[]>([]);
   const [prescriptions, setPrescriptions] = React.useState<Prescription[]>([]);
+  const isHydratedRef = React.useRef(false);
+
+  // Hydrate from storage on mount
+  React.useEffect(() => {
+    setMedicines(getStoredPharmacyMedicines());
+    setPrescriptions(getStoredPharmacyPrescriptions());
+    isHydratedRef.current = true;
+  }, []);
+
+  // Persist medicines
+  React.useEffect(() => {
+    if (isHydratedRef.current) {
+      saveStoredPharmacyMedicines(medicines);
+    }
+  }, [medicines]);
+
+  // Persist prescriptions
+  React.useEffect(() => {
+    if (isHydratedRef.current) {
+      saveStoredPharmacyPrescriptions(prescriptions);
+    }
+  }, [prescriptions]);
 
   // ---------------------------------------------------------------------------
   // MEDICINES OPERATIONS

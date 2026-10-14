@@ -22,6 +22,16 @@ import {
   generateCSVReportContent,
   getTodayDateString,
 } from "@/lib/report-utils";
+import { usePharmacy } from "@/context/pharmacy-context";
+import { MockPatient, getStoredPatients } from "@/lib/mock-data/patients";
+import { MockConsultation, getStoredConsultations } from "@/lib/mock-data/consultations";
+import { MaternalRecord } from "@/types/maternal-care";
+import { getInitialMaternalRecords } from "@/lib/mock-data/maternal-care";
+import { NipPatientRecord, getStoredImmunizationRecords } from "@/components/immunization/types";
+import { FPClient } from "@/types/family-planning";
+import { getStoredFPClients } from "@/lib/family-planning-utils";
+import { Appointment } from "@/types/appointment";
+import { getStoredAppointments } from "@/lib/appointment-utils";
 import { ReportHeader } from "./report-header";
 import { PatientStatisticsCard } from "./patient-statistics-card";
 import { ConsultationStatisticsCard } from "./consultation-statistics-card";
@@ -33,6 +43,24 @@ import { MedicinePrescriptionStatisticsCard } from "./medicine-prescription-stat
 import { ViewReportDialog } from "./view-report-dialog";
 
 export function ReportsDashboardView() {
+  const { medicines, prescriptions } = usePharmacy();
+  const [patients, setPatients] = React.useState<MockPatient[]>([]);
+  const [consultations, setConsultations] = React.useState<MockConsultation[]>([]);
+  const [maternalRecords, setMaternalRecords] = React.useState<MaternalRecord[]>([]);
+  const [immunizations, setImmunizations] = React.useState<NipPatientRecord[]>([]);
+  const [fpClients, setFpClients] = React.useState<FPClient[]>([]);
+  const [appointments, setAppointments] = React.useState<Appointment[]>([]);
+
+  // Hydrate actual clinical records from storage on mount
+  React.useEffect(() => {
+    setPatients(getStoredPatients());
+    setConsultations(getStoredConsultations());
+    setMaternalRecords(getInitialMaternalRecords());
+    setImmunizations(getStoredImmunizationRecords());
+    setFpClients(getStoredFPClients());
+    setAppointments(getStoredAppointments());
+  }, []);
+
   // Date filter state
   const [filter, setFilter] = React.useState<ReportDateFilter>("month");
   const [customStartDate, setCustomStartDate] = React.useState(getTodayDateString());
@@ -45,10 +73,31 @@ export function ReportsDashboardView() {
   const [isViewModalOpen, setIsViewModalOpen] = React.useState(false);
   const [exportFeedback, setExportFeedback] = React.useState<string | null>(null);
 
-  // Compute comprehensive data dynamically based on the active date filter
+  // Compute comprehensive data dynamically based on active date filter and real records
   const reportData = React.useMemo<ComprehensiveReportData>(() => {
-    return getComprehensiveReportData(filter, customStartDate, customEndDate);
-  }, [filter, customStartDate, customEndDate]);
+    return getComprehensiveReportData(filter, customStartDate, customEndDate, {
+      patients,
+      consultations,
+      maternalRecords,
+      immunizationRecords: immunizations,
+      fpClients,
+      appointments,
+      medicines,
+      prescriptions,
+    });
+  }, [
+    filter,
+    customStartDate,
+    customEndDate,
+    patients,
+    consultations,
+    maternalRecords,
+    immunizations,
+    fpClients,
+    appointments,
+    medicines,
+    prescriptions,
+  ]);
 
   // Actions
   const handleViewReport = () => {

@@ -5,6 +5,29 @@ import {
   FPDashboardStats,
 } from "@/types/family-planning";
 
+export const FP_STORAGE_KEY = "bhcms_family_planning_v1";
+
+export function getStoredFPClients(): FPClient[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(FP_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveStoredFPClients(clients: FPClient[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(FP_STORAGE_KEY, JSON.stringify(clients));
+  } catch (e) {
+    console.error("Failed to save FP clients to storage", e);
+  }
+}
+
 export function getTodayDateString(): string {
   const today = new Date();
   const year = today.getFullYear();

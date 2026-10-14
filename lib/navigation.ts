@@ -55,4 +55,10 @@ export const MAIN_NAV_ITEMS: NavItem[] = [
     iconName: "FileBarChart",
     description: "FHSIS reports, demographic summaries, and DOH submissions",
   },
+  {
+    title: "Settings",
+    href: "/settings",
+    iconName: "Settings",
+    description: "Station settings, staff accounts, and system preferences",
+  },
 ];

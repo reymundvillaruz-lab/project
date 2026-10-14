@@ -10,35 +10,39 @@ interface MaternalCareStatisticsCardProps {
 }
 
 export function MaternalCareStatisticsCard({ data }: MaternalCareStatisticsCardProps) {
+  const total = data.totalExpectedPregnancies;
+  const calcPct = (value: number) =>
+    total > 0 ? Math.round((value / total) * 100) : 0;
+
   const ancChartItems: BarChartItem[] = [
     {
       label: "1st Trimester Antenatal Care (ANC) Booking",
       value: data.firstTrimesterBooking,
-      percentage: Math.round((data.firstTrimesterBooking / data.totalExpectedPregnancies) * 100),
+      percentage: calcPct(data.firstTrimesterBooking),
       barColor: "bg-teal-600",
     },
     {
       label: "4 or More Antenatal Visits (ANC4+ Completed)",
       value: data.fourOrMoreAntenatalVisits,
-      percentage: Math.round((data.fourOrMoreAntenatalVisits / data.totalExpectedPregnancies) * 100),
+      percentage: calcPct(data.fourOrMoreAntenatalVisits),
       barColor: "bg-emerald-600",
     },
     {
       label: "Tetanus Diphtheria (Td) Vaccinated Mothers",
       value: data.tetanusVaccinatedMothers,
-      percentage: Math.round((data.tetanusVaccinatedMothers / data.totalExpectedPregnancies) * 100),
+      percentage: calcPct(data.tetanusVaccinatedMothers),
       barColor: "bg-sky-600",
     },
     {
       label: "Iron & Folic Acid Micronutrient Supplemented",
       value: data.ironFolicAcidSupplemented,
-      percentage: Math.round((data.ironFolicAcidSupplemented / data.totalExpectedPregnancies) * 100),
+      percentage: calcPct(data.ironFolicAcidSupplemented),
       barColor: "bg-indigo-600",
     },
     {
       label: "Postpartum Care Visits Completed (At least 2 visits)",
       value: data.postpartumVisitsCompleted,
-      percentage: Math.round((data.postpartumVisitsCompleted / data.totalExpectedPregnancies) * 100),
+      percentage: calcPct(data.postpartumVisitsCompleted),
       barColor: "bg-amber-600",
     },
   ];
@@ -74,7 +78,7 @@ export function MaternalCareStatisticsCard({ data }: MaternalCareStatisticsCardP
           <div>
             <span className="text-[11px] text-slate-500 block">ANC4+ Compliant</span>
             <span className="text-lg font-bold text-emerald-800 font-mono">
-              {data.fourOrMoreAntenatalVisits} ({Math.round((data.fourOrMoreAntenatalVisits / data.totalExpectedPregnancies) * 100)}%)
+              {data.fourOrMoreAntenatalVisits} ({calcPct(data.fourOrMoreAntenatalVisits)}%)
             </span>
           </div>
           <div>

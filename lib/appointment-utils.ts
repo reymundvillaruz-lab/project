@@ -4,6 +4,29 @@ import {
   AppointmentStatus,
 } from "@/types/appointment";
 
+export const APPOINTMENTS_STORAGE_KEY = "bhcms_appointments_v1";
+
+export function getStoredAppointments(): Appointment[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(APPOINTMENTS_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveStoredAppointments(appointments: Appointment[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(APPOINTMENTS_STORAGE_KEY, JSON.stringify(appointments));
+  } catch (e) {
+    console.error("Failed to save appointments to storage", e);
+  }
+}
+
 export function getTodayDateString(): string {
   const today = new Date();
   const year = today.getFullYear();
@@ -234,11 +257,10 @@ export const PURPOSE_OPTIONS = [
 ];
 
 export const STANDARD_BHW_OPTIONS = [
-  "Nurse Elena Gomez, RN",
-  "Midwife Marites Reyes, RM",
-  "Dr. Ramon Santos, MD (MHO)",
-  "BHW Rosario Cruz",
-  "BHW Josefina Ramos",
-  "BHW Carmen Villanueva",
-  "Barangay Health Station On-Duty",
+  "Municipal Health Officer / Physician",
+  "Public Health Nurse, RN",
+  "Rural Health Midwife, RM",
+  "Barangay Health Worker (BHW) On-Duty",
+  "Triage & Clinical Management Station",
 ];
+
