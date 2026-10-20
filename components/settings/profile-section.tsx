@@ -6,22 +6,65 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
+import { useSettings } from "@/context/settings-context";
+
 export function ProfileSection() {
-  const [name, setName] = React.useState("Maria Elena Santos, RN");
-  const [roleTitle, setRoleTitle] = React.useState(
-    "Barangay Health Station Administrator / Public Health Nurse"
-  );
-  const [email, setEmail] = React.useState("admin@barangayhealth.gov.ph");
-  const [phone, setPhone] = React.useState("0917-888-2468");
-  const [station, setStation] = React.useState(
-    "Triage, Clinical Consultations & Pharmacy Station"
-  );
-  const [licenseNo, setLicenseNo] = React.useState("PRC RN-089124");
+  const { profile, updateProfile } = useSettings();
+
+  const [name, setName] = React.useState(profile.name);
+  const [roleTitle, setRoleTitle] = React.useState(profile.roleTitle);
+  const [email, setEmail] = React.useState(profile.email);
+  const [phone, setPhone] = React.useState(profile.phone);
+  const [station, setStation] = React.useState(profile.station);
+  const [licenseNo, setLicenseNo] = React.useState(profile.licenseNo);
+  const [avatarUrl, setAvatarUrl] = React.useState<string | null>(profile.avatarUrl);
   const [feedback, setFeedback] = React.useState<string | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  React.useEffect(() => {
+    setName(profile.name);
+    setRoleTitle(profile.roleTitle);
+    setEmail(profile.email);
+    setPhone(profile.phone);
+    setStation(profile.station);
+    setLicenseNo(profile.licenseNo);
+    setAvatarUrl(profile.avatarUrl);
+  }, [profile]);
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        setAvatarUrl(result);
+        updateProfile({ avatarUrl: result });
+        setFeedback("Profile photo updated and saved successfully.");
+        setTimeout(() => setFeedback(null), 3000);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveAvatar = () => {
+    setAvatarUrl(null);
+    updateProfile({ avatarUrl: null });
+    setFeedback("Profile photo removed.");
+    setTimeout(() => setFeedback(null), 3000);
+  };
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    setFeedback("Administrator profile updated successfully.");
+    updateProfile({
+      name: name.trim(),
+      roleTitle: roleTitle.trim(),
+      email: email.trim(),
+      phone: phone.trim(),
+      station: station.trim(),
+      licenseNo: licenseNo.trim(),
+      avatarUrl,
+    });
+    setFeedback("Administrator profile saved and updated successfully.");
     setTimeout(() => setFeedback(null), 3500);
   };
 
@@ -53,9 +96,31 @@ export function ProfileSection() {
 
           {/* Profile Header Card with Avatar */}
           <div className="flex items-center gap-4 p-3.5 rounded-lg border border-slate-200 bg-slate-50/70">
-            <div className="h-14 w-14 rounded-full bg-teal-700 text-white flex items-center justify-center font-bold text-lg shadow-xs shrink-0">
-              MS
-            </div>
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept="image/*"
+              className="hidden"
+              onChange={handleAvatarChange}
+            />
+            {avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={avatarUrl}
+                alt="Profile Avatar"
+                className="h-14 w-14 rounded-full object-cover border-2 border-teal-600 shadow-xs shrink-0"
+              />
+            ) : (
+              <div className="h-14 w-14 rounded-full bg-teal-700 text-white flex items-center justify-center font-bold text-lg shadow-xs shrink-0">
+                {name
+                  .split(" ")
+                  .map((w) => w[0])
+                  .filter(Boolean)
+                  .slice(0, 2)
+                  .join("")
+                  .toUpperCase() || "AD"}
+              </div>
+            )}
             <div className="space-y-1 min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <h3 className="font-bold text-sm text-slate-900 truncate">{name}</h3>
@@ -66,16 +131,29 @@ export function ProfileSection() {
               <p className="text-xs text-slate-600 truncate">{roleTitle}</p>
               <p className="text-[11px] text-slate-400 font-mono">{email}</p>
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="text-xs shrink-0 h-8 gap-1.5"
-              onClick={() => alert("Avatar upload will be enabled with file storage in Phase 2.")}
-            >
-              <Upload className="h-3.5 w-3.5 text-slate-500" />
-              Change Photo
-            </Button>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="text-xs h-8 gap-1.5"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="h-3.5 w-3.5 text-slate-500" />
+                Change Photo
+              </Button>
+              {avatarUrl && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs h-8 text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                  onClick={handleRemoveAvatar}
+                >
+                  Remove
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* Form Fields */}

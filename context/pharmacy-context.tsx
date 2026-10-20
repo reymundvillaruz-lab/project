@@ -20,6 +20,7 @@ interface PharmacyContextType {
   ) => void;
   deleteMedicine: (medicineId: string) => void;
   addPrescription: (prescription: Prescription) => void;
+  updatePrescription: (prescription: Prescription) => void;
   updatePrescriptionStatus: (
     prescriptionId: string,
     status: PrescriptionStatus
@@ -46,10 +47,20 @@ export function saveStoredPharmacyMedicines(medicines: Medicine[]): void {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(PHARMACY_MEDS_STORAGE_KEY, JSON.stringify(medicines));
+    // Sync to Supabase in background
+    import("@/lib/supabase/services/pharmacy-service").then(({ saveMedicineToSupabase }) => {
+      medicines.forEach((med) => {
+        saveMedicineToSupabase(med).catch((e) =>
+          console.warn("Background Supabase medicine sync error:", e)
+        );
+      });
+    });
   } catch (e) {
     console.error("Failed to save pharmacy medicines to storage", e);
   }
 }
+
+import { DEFAULT_INITIAL_PRESCRIPTIONS, getPrescriptionItems } from "@/lib/pharmacy-utils";
 
 export function getStoredPharmacyPrescriptions(): Prescription[] {
   if (typeof window === "undefined") return [];
@@ -57,7 +68,15 @@ export function getStoredPharmacyPrescriptions(): Prescription[] {
     const raw = localStorage.getItem(PHARMACY_RX_STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+    // Sanitize and filter out legacy mock prescriptions
+    const cleaned = parsed.filter(
+      (rx: Prescription) => rx && rx.id !== "RX-2026-001" && rx.id !== "RX-2026-002"
+    );
+    if (cleaned.length !== parsed.length) {
+      localStorage.setItem(PHARMACY_RX_STORAGE_KEY, JSON.stringify(cleaned));
+    }
+    return cleaned;
   } catch {
     return [];
   }
@@ -81,11 +100,29 @@ export function PharmacyProvider({ children }: { children: React.ReactNode }) {
   const [prescriptions, setPrescriptions] = React.useState<Prescription[]>([]);
   const isHydratedRef = React.useRef(false);
 
-  // Hydrate from storage on mount
+  // Hydrate from storage on mount and sync from Supabase
   React.useEffect(() => {
     setMedicines(getStoredPharmacyMedicines());
     setPrescriptions(getStoredPharmacyPrescriptions());
     isHydratedRef.current = true;
+
+    // Fetch live data from Supabase
+    import("@/lib/supabase/services/pharmacy-service").then(
+      async ({ fetchMedicinesFromSupabase, fetchPrescriptionsFromSupabase }) => {
+        try {
+          const sbMeds = await fetchMedicinesFromSupabase();
+          if (sbMeds && sbMeds.length > 0) {
+            setMedicines(sbMeds);
+          }
+          const sbRx = await fetchPrescriptionsFromSupabase();
+          if (sbRx && sbRx.length > 0) {
+            setPrescriptions(sbRx);
+          }
+        } catch (e) {
+          console.warn("Pharmacy Supabase fetch error:", e);
+        }
+      }
+    );
   }, []);
 
   // Persist medicines
@@ -209,20 +246,57 @@ export function PharmacyProvider({ children }: { children: React.ReactNode }) {
   // ---------------------------------------------------------------------------
   // PRESCRIPTIONS OPERATIONS
   // ---------------------------------------------------------------------------
-  const addPrescription = React.useCallback((newRx: Prescription) => {
-    setPrescriptions((prev) => [newRx, ...prev]);
-
-    // Optional stock sync: if prescription specifies medicineId or quantityToDispense and is dispensed
-    if (newRx.status === "Dispensed" && newRx.medicineId && newRx.quantityToDispense) {
-      adjustStock(newRx.medicineId, {
-        date: newRx.date,
-        type: "Stock Out",
-        quantity: newRx.quantityToDispense,
-        reason: `Dispensed for prescription ${newRx.id} (${newRx.patientName})`,
-        adjustedBy: newRx.dispensedBy || newRx.prescriber,
+  const syncPrescriptionDispenseStock = React.useCallback(
+    (rx: Prescription) => {
+      const items = getPrescriptionItems(rx);
+      items.forEach((item) => {
+        if (item.medicineId && item.quantity && item.quantity > 0) {
+          adjustStock(item.medicineId, {
+            date: rx.date,
+            type: "Stock Out",
+            quantity: item.quantity,
+            reason: `Dispensed for prescription ${rx.id} (${rx.patientName}) - ${item.drug}`,
+            adjustedBy: rx.dispensedBy || rx.prescriber,
+          });
+        }
       });
-    }
-  }, [adjustStock]);
+      // Fallback for single medicine ID
+      if (rx.medicineId && rx.quantityToDispense && items.every((i) => !i.medicineId)) {
+        adjustStock(rx.medicineId, {
+          date: rx.date,
+          type: "Stock Out",
+          quantity: rx.quantityToDispense,
+          reason: `Dispensed for prescription ${rx.id} (${rx.patientName})`,
+          adjustedBy: rx.dispensedBy || rx.prescriber,
+        });
+      }
+    },
+    [adjustStock]
+  );
+
+  const addPrescription = React.useCallback(
+    (newRx: Prescription) => {
+      setPrescriptions((prev) => [newRx, ...prev]);
+
+      if (newRx.status === "Dispensed") {
+        syncPrescriptionDispenseStock(newRx);
+      }
+    },
+    [syncPrescriptionDispenseStock]
+  );
+
+  const updatePrescription = React.useCallback(
+    (updatedRx: Prescription) => {
+      setPrescriptions((prev) =>
+        prev.map((rx) => (rx.id === updatedRx.id ? updatedRx : rx))
+      );
+
+      if (updatedRx.status === "Dispensed") {
+        syncPrescriptionDispenseStock(updatedRx);
+      }
+    },
+    [syncPrescriptionDispenseStock]
+  );
 
   const updatePrescriptionStatus = React.useCallback(
     (prescriptionId: string, status: PrescriptionStatus) => {
@@ -239,11 +313,15 @@ export function PharmacyProvider({ children }: { children: React.ReactNode }) {
                 : rx.dispensedDate,
           };
 
+          if (status === "Dispensed" && rx.status !== "Dispensed") {
+            syncPrescriptionDispenseStock(updated);
+          }
+
           return updated;
         })
       );
     },
-    []
+    [syncPrescriptionDispenseStock]
   );
 
   const deletePrescription = React.useCallback((prescriptionId: string) => {
@@ -259,6 +337,7 @@ export function PharmacyProvider({ children }: { children: React.ReactNode }) {
       adjustStock,
       deleteMedicine,
       addPrescription,
+      updatePrescription,
       updatePrescriptionStatus,
       deletePrescription,
     }),
@@ -270,6 +349,7 @@ export function PharmacyProvider({ children }: { children: React.ReactNode }) {
       adjustStock,
       deleteMedicine,
       addPrescription,
+      updatePrescription,
       updatePrescriptionStatus,
       deletePrescription,
     ]

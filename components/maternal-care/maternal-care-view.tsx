@@ -41,11 +41,25 @@ export function MaternalCareView() {
   // User session alert
   const [sessionToast, setSessionToast] = React.useState<string | null>(null);
 
-  // Hydrate on mount
+  // Hydrate on mount and sync from Supabase
   React.useEffect(() => {
     const initial = getInitialMaternalRecords();
     setRecords(initial);
     setIsHydrated(true);
+
+    import("@/lib/supabase/services/maternal-service").then(
+      async ({ fetchMaternalRecordsFromSupabase }) => {
+        try {
+          const sbRecords = await fetchMaternalRecordsFromSupabase();
+          if (sbRecords && sbRecords.length > 0) {
+            setRecords(sbRecords);
+            saveMaternalRecords(sbRecords);
+          }
+        } catch (e) {
+          console.warn("Could not fetch maternal records from Supabase:", e);
+        }
+      }
+    );
   }, []);
 
   const showToast = (message: string) => {
@@ -101,6 +115,26 @@ export function MaternalCareView() {
   const handleViewPrenatalHistory = (record: MaternalRecord) => {
     setSelectedRecordId(record.id);
     setDetailInitialTab("history");
+  };
+
+  const handleDeleteRecord = async (recordId: string) => {
+    const target = records.find((r) => r.id === recordId);
+    setRecords((prev) => {
+      const nextRecords = prev.filter((r) => r.id !== recordId);
+      saveMaternalRecords(nextRecords);
+      return nextRecords;
+    });
+
+    try {
+      const { deleteMaternalRecordFromSupabase } = await import(
+        "@/lib/supabase/services/maternal-service"
+      );
+      await deleteMaternalRecordFromSupabase(recordId);
+    } catch (e) {
+      console.warn("Could not delete maternal record from Supabase:", e);
+    }
+
+    showToast(`Maternal record for ${target?.patientName || recordId} deleted.`);
   };
 
   const handleOpenAddVisitDialog = (record: MaternalRecord) => {
@@ -257,6 +291,7 @@ export function MaternalCareView() {
             onViewRecord={handleViewRecord}
             onEditRecord={handleOpenEditRecordDialog}
             onViewPrenatalHistory={handleViewPrenatalHistory}
+            onDeleteRecord={handleDeleteRecord}
             onNewRecord={handleOpenNewRecordDialog}
           />
         </div>

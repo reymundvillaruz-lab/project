@@ -8,7 +8,6 @@ import {
   Eye,
   Edit3,
   ArrowUpDown,
-  MoreVertical,
   Calendar,
   AlertTriangle,
   Trash2,
@@ -37,6 +36,7 @@ import {
 import { Medicine, MedicineStatus } from "@/types/pharmacy";
 import { MedicineStatusBadge } from "./medicine-status-badge";
 import { MEDICINE_CATEGORIES, getTodayDateString } from "@/lib/pharmacy-utils";
+import { Pagination } from "@/components/ui/pagination";
 
 interface MedicineListProps {
   medicines: Medicine[];
@@ -88,6 +88,19 @@ export function MedicineList({
       return true;
     });
   }, [medicines, searchQuery, statusFilter, categoryFilter]);
+
+  const PAGE_SIZE = 10;
+  const [currentPage, setCurrentPage] = React.useState(1);
+
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter, categoryFilter]);
+
+  const totalPages = Math.ceil(filteredMedicines.length / PAGE_SIZE) || 1;
+  const paginatedMedicines = React.useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredMedicines.slice(start, start + PAGE_SIZE);
+  }, [filteredMedicines, currentPage]);
 
   const hasActiveFilters =
     searchQuery.trim() !== "" || statusFilter !== "all" || categoryFilter !== "all";
@@ -216,13 +229,13 @@ export function MedicineList({
                   <TableHead className="w-[130px] font-semibold text-slate-700">
                     Status
                   </TableHead>
-                  <TableHead className="w-[80px] text-right font-semibold text-slate-700">
+                  <TableHead className="min-w-[190px] text-right font-semibold text-slate-700">
                     Actions
                   </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredMedicines.map((med) => {
+                {paginatedMedicines.map((med) => {
                   const isExp = med.expirationDate && med.expirationDate < todayStr;
 
                   return (
@@ -294,59 +307,61 @@ export function MedicineList({
                       </TableCell>
 
                       {/* Actions */}
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-slate-500 hover:text-slate-900"
-                            >
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="text-xs">
-                            <DropdownMenuItem
-                              onClick={() => onViewDetails(med)}
-                              className="text-xs gap-1.5"
-                            >
-                              <Eye className="h-3.5 w-3.5 text-slate-500" />
-                              View Details &amp; History
-                            </DropdownMenuItem>
+                      <TableCell className="text-right py-2 whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => onViewDetails(med)}
+                            className="h-7 px-2 text-xs text-teal-700 hover:bg-teal-50 hover:text-teal-900"
+                            title="View Details & History"
+                          >
+                            <Eye className="h-3.5 w-3.5 mr-1" />
+                            <span>View</span>
+                          </Button>
 
-                            <DropdownMenuItem
-                              onClick={() => onAdjustStock(med)}
-                              className="text-xs gap-1.5 text-teal-800"
-                            >
-                              <ArrowUpDown className="h-3.5 w-3.5 text-teal-600" />
-                              Adjust Stock Level
-                            </DropdownMenuItem>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => onEditMedicine(med)}
+                            className="h-7 px-2 text-xs text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                            title="Edit Item"
+                          >
+                            <Edit3 className="h-3.5 w-3.5 mr-1" />
+                            <span>Edit</span>
+                          </Button>
 
-                            <DropdownMenuItem
-                              onClick={() => onEditMedicine(med)}
-                              className="text-xs gap-1.5"
-                            >
-                              <Edit3 className="h-3.5 w-3.5 text-slate-500" />
-                              Edit Item
-                            </DropdownMenuItem>
-
-                            <DropdownMenuSeparator />
-
-                            <DropdownMenuItem
-                              onClick={() => onDeleteMedicine(med.id)}
-                              className="text-xs gap-1.5 text-rose-600 focus:text-rose-600"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                              Remove from Inventory
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => onDeleteMedicine(med.id)}
+                            className="h-7 px-2 text-xs text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                            title="Remove from Inventory"
+                          >
+                            <Trash2 className="h-3.5 w-3.5 mr-1" />
+                            <span>Delete</span>
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
                 })}
               </TableBody>
             </Table>
+
+            {/* Pagination Controls */}
+            <div className="p-4 border-t border-slate-100">
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={filteredMedicines.length}
+                pageSize={PAGE_SIZE}
+                onPageChange={setCurrentPage}
+              />
+            </div>
           </div>
         )}
       </CardContent>

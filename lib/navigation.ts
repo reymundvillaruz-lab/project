@@ -56,6 +56,12 @@ export const MAIN_NAV_ITEMS: NavItem[] = [
     description: "FHSIS reports, demographic summaries, and DOH submissions",
   },
   {
+    title: "Monthly Archives",
+    href: "/archives",
+    iconName: "FolderArchive",
+    description: "Historical monthly records, folder archives, and automated reset",
+  },
+  {
     title: "Settings",
     href: "/settings",
     iconName: "Settings",

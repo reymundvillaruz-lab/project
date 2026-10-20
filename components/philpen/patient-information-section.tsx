@@ -17,6 +17,7 @@ export function PatientInformationSection({
   onChange,
   ageValidationError,
 }: PatientInformationSectionProps) {
+
   // Handle birthdate change and auto-calculate age
   const handleBirthdateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const bdate = e.target.value;

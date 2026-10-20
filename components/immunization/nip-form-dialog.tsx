@@ -33,6 +33,7 @@ import {
   Plus,
 } from "lucide-react";
 import { getStoredPatients, MockPatient } from "@/lib/mock-data/patients";
+import { PatientRegistrySelect } from "@/components/patients/patient-registry-select";
 
 interface NipFormDialogProps {
   open: boolean;
@@ -140,6 +141,7 @@ export function NipFormDialog({
   const [activeTab, setActiveTab] = React.useState("section-personal");
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [registeredPatients, setRegisteredPatients] = React.useState<MockPatient[]>([]);
+  const [selectedRegistryPatient, setSelectedRegistryPatient] = React.useState<MockPatient | null>(null);
 
   // Selected primary vaccine key for quick single-dose recording
   const [primaryVaccineKey, setPrimaryVaccineKey] = React.useState("bcg");
@@ -150,6 +152,7 @@ export function NipFormDialog({
       setFormData(getInitialState(initialRecord));
       setActiveTab("section-personal");
       setErrors({});
+      setSelectedRegistryPatient(null);
       setRegisteredPatients(getStoredPatients());
 
       // If initialRecord has a filled vaccine, focus that
@@ -418,23 +421,33 @@ export function NipFormDialog({
                   </div>
 
                   {/* Quick Select from Patient Registry if available */}
-                  {registeredPatients.length > 0 && !isEdit && (
-                    <div className="mb-4 bg-teal-50/60 border border-teal-200 p-3 rounded-lg text-xs">
-                      <Label htmlFor="registrySelect" className="text-teal-900 font-semibold mb-1 block">
-                        Quick Auto-fill from Patient Registry:
-                      </Label>
-                      <Select
-                        id="registrySelect"
-                        onChange={(e) => handleSelectRegistryPatient(e.target.value)}
-                        className="bg-white text-xs h-8"
-                      >
-                        <option value="">-- Choose registered patient to auto-fill (Optional) --</option>
-                        {registeredPatients.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.fullName || `${p.firstName} ${p.lastName}`} ({p.id}) &bull; {p.age}y {p.sex}
-                          </option>
-                        ))}
-                      </Select>
+                  {!isEdit && (
+                    <div className="mb-4">
+                      <PatientRegistrySelect
+                        selectedPatient={selectedRegistryPatient}
+                        onSelectPatient={(match) => {
+                          setSelectedRegistryPatient(match);
+                          setFormData((prev) => ({
+                            ...prev,
+                            patientName: match.fullName || `${match.firstName} ${match.lastName}`,
+                            sex: match.sex || prev.sex,
+                            birthdate: match.birthdate || prev.birthdate,
+                            age: match.age ? `${match.age} yrs` : prev.age,
+                            phicNumber: match.phicNo || prev.phicNumber,
+                            address: match.address || prev.address,
+                          }));
+                          setErrors((prev) => {
+                            const copy = { ...prev };
+                            delete copy.patientName;
+                            return copy;
+                          });
+                        }}
+                        onClearSelection={() => {
+                          setSelectedRegistryPatient(null);
+                        }}
+                        label="Find & Select Registered Resident (Child / Patient)"
+                        helperText="Child or patient already filled up in the Patient Registry? Select them to auto-fill personal & address info."
+                      />
                     </div>
                   )}
 

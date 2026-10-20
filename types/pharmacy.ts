@@ -52,19 +52,49 @@ export type PrescriptionStatus =
   | "Completed"
   | "Cancelled";
 
+export interface PrescriptionItem {
+  id: string;
+  drug: string; // Drugs column (e.g. "Amoxicillin Trihydrate 500mg Capsule")
+  medicineId?: string; // Linked inventory item if selected
+  unit: string; // Unit (Tablet/Syrup) column e.g. "Tablet", "Syrup", "Capsule", "Suspension"
+  dosagePerDay: string; // Dosage (Per Day) column e.g. "1 tab 3x a day after meals"
+  quantity?: number; // Total quantity to dispense e.g. 21
+}
+
 export interface Prescription {
   id: string; // e.g. "RX-2026-001"
+  date: string; // YYYY-MM-DD
+
+  // Printable Pharmaceutical Prescription Patient Information
   patientName: string;
   patientId?: string;
+  patientIdNumber?: string; // Patient ID Number
   patientContact?: string;
-  date: string; // YYYY-MM-DD
-  prescriber: string; // Doctor or BHW/Nurse
-  medicine: string; // Generic name / formulation
+  dateOfBirth?: string; // Date of Birth YYYY-MM-DD
+  age?: number | string; // Age
+  sex?: "Male" | "Female" | string; // Sex
+  occupation?: string; // Occupation (e.g. Teacher, Farmer, Merchant)
+  healthInsuranceNumber?: string; // Health Insurance Number (PhilHealth)
+  healthCareProvider?: string; // Health Care Provider (Clinic / Hospital / Doctor)
+  healthCardNumber?: string; // Health Card Number (Senior / PWD / Local card)
+
+  // Prescriber / Doctor Information
+  prescriber: string; // Prescriber / Doctor Name
+  doctorLicenseNumber?: string; // PRC / License No.
+  doctorPtrNumber?: string; // PTR No.
+  doctorSignatureTitle?: string; // e.g. "Doctor's Signature"
+
+  // Prescription Items (Drugs, Unit, Dosage Per Day)
+  items?: PrescriptionItem[];
+
+  // Legacy fields preserved for backward compatibility
+  medicine: string; // Generic / brand name summary
   medicineId?: string;
-  dosage: string; // e.g. "500 mg"
-  frequency: string; // e.g. "3x a day after meals"
-  duration: string; // e.g. "7 days"
+  dosage: string;
+  frequency: string;
+  duration: string;
   quantityToDispense?: number;
+
   status: PrescriptionStatus;
   notes?: string;
   dispensedDate?: string;

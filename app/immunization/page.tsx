@@ -20,9 +20,23 @@ import {
 export default function ImmunizationPage() {
   const [patientRecords, setPatientRecords] = React.useState<NipPatientRecord[]>([]);
 
-  // Hydrate from storage on mount
+  // Hydrate from storage on mount and sync from Supabase
   React.useEffect(() => {
     setPatientRecords(getStoredImmunizationRecords());
+
+    import("@/lib/supabase/services/immunization-service").then(
+      async ({ fetchImmunizationsFromSupabase }) => {
+        try {
+          const sbRecords = await fetchImmunizationsFromSupabase();
+          if (sbRecords && sbRecords.length > 0) {
+            setPatientRecords(sbRecords);
+            saveStoredImmunizationRecords(sbRecords);
+          }
+        } catch (e) {
+          console.warn("Could not fetch immunizations from Supabase:", e);
+        }
+      }
+    );
   }, []);
 
   // Dialog states

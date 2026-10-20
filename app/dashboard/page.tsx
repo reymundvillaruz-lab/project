@@ -1,3 +1,4 @@
+import { auth } from "@clerk/nextjs/server";
 import { getDashboardData } from "@/features/dashboard/services/dashboard-service";
 import { DashboardView } from "@/features/dashboard/components/dashboard-view";
 import { Metadata } from "next";
@@ -8,6 +9,7 @@ export const metadata: Metadata = {
 };
 
 export default async function DashboardPage() {
+  await auth.protect();
   const data = await getDashboardData();
 
   return <DashboardView initialData={data} />;

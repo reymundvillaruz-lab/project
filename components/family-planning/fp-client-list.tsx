@@ -5,12 +5,13 @@ import {
   X,
   Eye,
   Edit3,
+  Trash2,
   History,
-  MoreVertical,
   Calendar,
   CalendarClock,
   UserCheck,
   Plus,
+  CheckCircle2,
 } from "lucide-react";
 import {
   Table,
@@ -25,6 +26,16 @@ import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Pagination } from "@/components/ui/pagination";
+import { useSharedPatients } from "@/lib/patient-sync";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -51,19 +62,26 @@ interface FPClientListProps {
   clients: FPClient[];
   onViewDetails: (client: FPClient) => void;
   onEditClient: (client: FPClient) => void;
+  onDeleteClient?: (clientId: string) => void;
   onViewServiceHistory: (client: FPClient) => void;
   onScheduleFollowUp: (client: FPClient) => void;
   onNewClient: () => void;
 }
 
+const PAGE_SIZE = 10;
+
 export function FPClientList({
   clients,
   onViewDetails,
   onEditClient,
+  onDeleteClient,
   onViewServiceHistory,
   onScheduleFollowUp,
   onNewClient,
 }: FPClientListProps) {
+  const [clientToDelete, setClientToDelete] = React.useState<FPClient | null>(null);
+  const { isPatientRegistered } = useSharedPatients();
+  const [currentPage, setCurrentPage] = React.useState(1);
   const [filters, setFilters] = React.useState<FPFiltersState>({
     searchQuery: "",
     clientType: "all",
@@ -184,6 +202,19 @@ export function FPClientList({
       return true;
     });
   }, [clients, filters]);
+
+  // Reset page when filters change
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [filteredClients.length]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredClients.length / PAGE_SIZE));
+  const safePage = Math.min(Math.max(1, currentPage), totalPages);
+
+  const paginatedClients = React.useMemo(() => {
+    const startIndex = (safePage - 1) * PAGE_SIZE;
+    return filteredClients.slice(startIndex, startIndex + PAGE_SIZE);
+  }, [filteredClients, safePage]);
 
   return (
     <Card className="border-slate-200 shadow-xs">
@@ -368,15 +399,16 @@ export function FPClientList({
                     <TableHead className="w-32 font-bold text-slate-700">Last Service Date</TableHead>
                     <TableHead className="w-36 font-bold text-slate-700">Next Follow-up</TableHead>
                     <TableHead className="w-28 font-bold text-slate-700">Status</TableHead>
-                    <TableHead className="w-24 text-right font-bold text-slate-700 pr-4">Actions</TableHead>
+                    <TableHead className="min-w-[190px] text-right font-bold text-slate-700 pr-4">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredClients.map((client) => {
+                  {paginatedClients.map((client) => {
                     const followUpStatus = computeFollowUpStatus(
                       client.nextFollowUpDate,
                       client.followUpStatus
                     );
+                    const inRegistry = isPatientRegistered(client.id || client.fullName);
 
                     return (
                       <TableRow
@@ -397,13 +429,24 @@ export function FPClientList({
                         {/* 2. Client Name */}
                         <TableCell>
                           <div className="flex flex-col">
-                            <button
-                              type="button"
-                              onClick={() => onViewDetails(client)}
-                              className="text-left font-semibold text-xs text-slate-900 hover:text-teal-700 hover:underline cursor-pointer"
-                            >
-                              {client.fullName}
-                            </button>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <button
+                                type="button"
+                                onClick={() => onViewDetails(client)}
+                                className="text-left font-semibold text-xs text-slate-900 hover:text-teal-700 hover:underline cursor-pointer"
+                              >
+                                {client.fullName}
+                              </button>
+                              {inRegistry && (
+                                <span
+                                  className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200"
+                                  title="Verified: Patient record exists in Patient Registry"
+                                >
+                                  <CheckCircle2 className="h-2.5 w-2.5 text-emerald-600" />
+                                  In Registry
+                                </span>
+                              )}
+                            </div>
                             <span className="text-[11px] text-slate-400">
                               {client.address || "Barangay resident"}
                             </span>
@@ -462,44 +505,46 @@ export function FPClientList({
                         </TableCell>
 
                         {/* 9. Actions */}
-                        <TableCell className="text-right pr-3">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger className="p-1 rounded hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors">
-                              <MoreVertical className="h-4 w-4" />
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-48 text-xs">
-                              <DropdownMenuLabel>Client Actions</DropdownMenuLabel>
-                              <DropdownMenuItem
-                                onClick={() => onViewDetails(client)}
-                                className="cursor-pointer"
+                        <TableCell className="text-right pr-3 whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => onViewDetails(client)}
+                              className="h-7 px-2 text-xs text-teal-700 hover:bg-teal-50 hover:text-teal-900"
+                              title="View Details"
+                            >
+                              <Eye className="h-3.5 w-3.5 mr-1" />
+                              <span>View</span>
+                            </Button>
+
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => onEditClient(client)}
+                              className="h-7 px-2 text-xs text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                              title="Edit Record"
+                            >
+                              <Edit3 className="h-3.5 w-3.5 mr-1" />
+                              <span>Edit</span>
+                            </Button>
+
+                            {onDeleteClient && (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setClientToDelete(client)}
+                                className="h-7 px-2 text-xs text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                                title="Delete Record"
                               >
-                                <Eye className="h-3.5 w-3.5 mr-2 text-teal-700" />
-                                View Details
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => onEditClient(client)}
-                                className="cursor-pointer"
-                              >
-                                <Edit3 className="h-3.5 w-3.5 mr-2 text-sky-700" />
-                                Edit Record
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                onClick={() => onViewServiceHistory(client)}
-                                className="cursor-pointer"
-                              >
-                                <History className="h-3.5 w-3.5 mr-2 text-amber-700" />
-                                Service History
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => onScheduleFollowUp(client)}
-                                className="cursor-pointer"
-                              >
-                                <CalendarClock className="h-3.5 w-3.5 mr-2 text-teal-700" />
-                                Schedule Follow-up
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                                <Trash2 className="h-3.5 w-3.5 mr-1" />
+                                <span>Delete</span>
+                              </Button>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -507,9 +552,65 @@ export function FPClientList({
                 </TableBody>
               </Table>
             </div>
+
+            {/* 10-Client Pagination Bar */}
+            <Pagination
+              currentPage={safePage}
+              totalItems={filteredClients.length}
+              pageSize={PAGE_SIZE}
+              onPageChange={setCurrentPage}
+              itemName="family planning clients"
+            />
           </div>
         )}
       </CardContent>
+
+      {/* Delete Confirmation Modal */}
+      <Dialog
+        open={!!clientToDelete}
+        onOpenChange={(open) => {
+          if (!open) setClientToDelete(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-rose-700 flex items-center gap-2 text-base">
+              <Trash2 className="h-5 w-5 text-rose-600" />
+              Delete Family Planning Record
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-600 pt-1 leading-relaxed">
+              Are you sure you want to permanently delete the family planning client record for{" "}
+              <strong className="text-slate-900">{clientToDelete?.fullName}</strong> (
+              <span className="font-mono">{clientToDelete?.id}</span>)? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0 pt-2 border-t border-slate-100">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setClientToDelete(null)}
+              className="text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => {
+                if (clientToDelete && onDeleteClient) {
+                  onDeleteClient(clientToDelete.id);
+                  setClientToDelete(null);
+                }
+              }}
+              className="bg-rose-600 hover:bg-rose-700 text-white text-xs gap-1.5"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Confirm Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

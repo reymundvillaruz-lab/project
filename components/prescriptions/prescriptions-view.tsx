@@ -22,6 +22,7 @@ export function PrescriptionsView() {
     prescriptions,
     medicines,
     addPrescription,
+    updatePrescription,
     updatePrescriptionStatus,
     deletePrescription,
   } = usePharmacy();
@@ -60,7 +61,11 @@ export function PrescriptionsView() {
   };
 
   const handleSavePrescription = (savedRx: Prescription) => {
-    addPrescription(savedRx);
+    if (prescriptionToEdit) {
+      updatePrescription(savedRx);
+    } else {
+      addPrescription(savedRx);
+    }
   };
 
   return (
@@ -68,12 +73,17 @@ export function PrescriptionsView() {
       {/* Header & Sub-navigation */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 pb-4">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl flex items-center gap-2">
-            <Pill className="h-6 w-6 text-teal-700" />
-            Prescriptions &amp; Dispensed Medicines
-          </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Log patient prescriptions, track dispensed pharmacy orders, and review healthcare worker directions.
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl flex items-center gap-2">
+              <Pill className="h-6 w-6 text-indigo-700" />
+              Medical Prescriptions
+            </h1>
+            <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+              Printable Rx Method
+            </span>
+          </div>
+          <p className="text-xs text-slate-500 mt-1">
+            Standard pharmaceutical prescription pad system with printable patient orders, dosage per day tracking, and inventory sync.
           </p>
         </div>
 
@@ -84,7 +94,7 @@ export function PrescriptionsView() {
               size="sm"
               className="h-9 text-xs gap-1.5 text-slate-700 hover:text-slate-900"
             >
-              <Package className="h-3.5 w-3.5 text-teal-700" />
+              <Package className="h-3.5 w-3.5 text-indigo-700" />
               Manage Inventory
               <ArrowRight className="h-3.5 w-3.5 ml-0.5" />
             </Button>
@@ -93,7 +103,7 @@ export function PrescriptionsView() {
           <Button
             size="sm"
             onClick={handleOpenCreate}
-            className="bg-teal-700 hover:bg-teal-800 text-xs shadow-xs h-9 gap-1.5"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs shadow-xs h-9 gap-1.5"
           >
             <Plus className="h-4 w-4" />
             Issue Prescription

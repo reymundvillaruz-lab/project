@@ -2,27 +2,42 @@ import { PhilpenFormData } from "./philpen";
 
 export interface MockPatient {
   id: string;
+  patientIdNumber?: string;
   firstName: string;
   lastName: string;
   middleName: string;
+  suffix?: string;
   fullName: string;
   sex: "Male" | "Female";
   age: number;
   birthdate: string;
   barangay: string;
   address: string;
+  purokOrStreet?: string;
+  purok?: string;
+  cityOrMunicipality?: string;
+  municipality?: string;
+  province?: string;
+  postalCode?: string;
   contact: string;
+  contactNumber?: string;
   lastVisit: string;
+  registeredDate?: string;
   createdAt?: string;
   updatedAt?: string;
   status: "Active" | "Inactive" | "Follow-up Needed";
   phicNo: string;
+  philhealthNumber?: string;
   civilStatus: string;
   religion: string;
+  bloodType?: string;
   pwdId: string;
   employmentStatus: string;
   isIp: string;
   ethnicity: string;
+  isNhtsBeneficiary?: boolean;
+  isSeniorCitizen?: boolean;
+  isPwd?: boolean;
   emergencyContact: {
     name: string;
     relationship: string;
@@ -91,6 +106,9 @@ export function saveStoredPatients(patients: MockPatient[]) {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(patients));
+    window.dispatchEvent(
+      new CustomEvent("bhcms:patients-updated", { detail: patients })
+    );
   } catch (e) {
     console.error("Failed to save patients to localStorage", e);
   }
@@ -106,6 +124,13 @@ export function addStoredPatient(patient: MockPatient): MockPatient[] {
   } else {
     updated = [patient, ...current];
   }
+  saveStoredPatients(updated);
+  return updated;
+}
+
+export function deleteStoredPatient(id: string): MockPatient[] {
+  const current = getStoredPatients();
+  const updated = current.filter((p) => p.id !== id);
   saveStoredPatients(updated);
   return updated;
 }

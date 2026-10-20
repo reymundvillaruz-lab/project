@@ -131,6 +131,18 @@ export const COMMON_DOSAGE_FORMS = [
   "Injectable",
 ];
 
+export const COMMON_PRESCRIPTION_UNITS = [
+  "Tablet",
+  "Syrup",
+  "Capsule",
+  "Suspension",
+  "Drops",
+  "Ointment",
+  "Vial",
+  "Sachet",
+  "Bottle",
+];
+
 export const COMMON_FREQUENCIES = [
   "Once daily (OD) - Morning",
   "Once daily (OD) - Bedtime",
@@ -150,3 +162,36 @@ export const STANDARD_PRESCRIBERS = [
   "Public Health Nurse, RN",
   "Barangay Health Worker (BHW) On-Duty",
 ];
+
+import { PrescriptionItem } from "@/types/pharmacy";
+
+export function getPrescriptionItems(rx: Prescription): PrescriptionItem[] {
+  if (rx.items && rx.items.length > 0) {
+    return rx.items;
+  }
+  if (rx.medicine) {
+    const unitGuess =
+      rx.medicine.toLowerCase().includes("syrup")
+        ? "Syrup"
+        : rx.medicine.toLowerCase().includes("capsule")
+        ? "Capsule"
+        : "Tablet";
+    return [
+      {
+        id: "item-default",
+        drug: rx.medicine,
+        medicineId: rx.medicineId,
+        unit: unitGuess,
+        dosagePerDay:
+          [rx.dosage, rx.frequency, rx.duration].filter(Boolean).join(" - ") ||
+          "As directed by physician",
+        quantity: rx.quantityToDispense,
+      },
+    ];
+  }
+  return [];
+}
+
+// Strictly EMPTY - Zero mock prescriptions
+export const DEFAULT_INITIAL_PRESCRIPTIONS: Prescription[] = [];
+

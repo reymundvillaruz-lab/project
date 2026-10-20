@@ -1,23 +1,49 @@
 import * as React from "react";
-import { Sliders, Sun, Moon, Laptop, CheckCircle2, Globe, Clock, Database } from "lucide-react";
+import { Sliders, CheckCircle2, Globe, Clock, Database, RotateCcw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 
+import { useSettings, DEFAULT_SYSTEM_PREFERENCES } from "@/context/settings-context";
+
 export function SystemPreferencesSection() {
-  const [theme, setTheme] = React.useState<"light" | "dark" | "system">("light");
-  const [defaultRoute, setDefaultRoute] = React.useState("/dashboard");
-  const [language, setLanguage] = React.useState("en");
-  const [dateFormat, setDateFormat] = React.useState("YYYY-MM-DD");
-  const [timeFormat, setTimeFormat] = React.useState<"12h" | "24h">("12h");
-  const [autoSaveDrafts, setAutoSaveDrafts] = React.useState(true);
-  const [offlineCache, setOfflineCache] = React.useState(true);
+  const { systemPreferences, updateSystemPreferences } = useSettings();
+
+  const [defaultRoute, setDefaultRoute] = React.useState(systemPreferences.defaultRoute);
+  const [language, setLanguage] = React.useState(systemPreferences.language);
+  const [dateFormat, setDateFormat] = React.useState(systemPreferences.dateFormat);
+  const [timeFormat, setTimeFormat] = React.useState<"12h" | "24h">(systemPreferences.timeFormat);
+  const [autoSaveDrafts, setAutoSaveDrafts] = React.useState(systemPreferences.autoSaveDrafts);
+  const [offlineCache, setOfflineCache] = React.useState(systemPreferences.offlineMode);
   const [feedback, setFeedback] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    setDefaultRoute(systemPreferences.defaultRoute);
+    setLanguage(systemPreferences.language);
+    setDateFormat(systemPreferences.dateFormat);
+    setTimeFormat(systemPreferences.timeFormat);
+    setAutoSaveDrafts(systemPreferences.autoSaveDrafts);
+    setOfflineCache(systemPreferences.offlineMode);
+  }, [systemPreferences]);
+
+  const handleResetDefaults = () => {
+    updateSystemPreferences(DEFAULT_SYSTEM_PREFERENCES);
+    setFeedback("Restored default system and workstation preferences.");
+    setTimeout(() => setFeedback(null), 3500);
+  };
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    setFeedback("System preferences saved successfully.");
+    updateSystemPreferences({
+      defaultRoute,
+      language,
+      dateFormat,
+      timeFormat,
+      autoSaveDrafts,
+      offlineMode: offlineCache,
+    });
+    setFeedback("System preferences saved and applied successfully.");
     setTimeout(() => setFeedback(null), 3500);
   };
 
@@ -42,67 +68,6 @@ export function SystemPreferencesSection() {
             </div>
           )}
 
-          {/* Theme Mode Selector */}
-          <div className="space-y-2">
-            <Label className="text-xs font-semibold text-slate-800">
-              Color Theme &amp; Contrast
-            </Label>
-            <div className="grid grid-cols-3 gap-3">
-              <button
-                type="button"
-                onClick={() => setTheme("light")}
-                className={`p-3 rounded-lg border text-left transition-all flex items-center gap-2.5 ${
-                  theme === "light"
-                    ? "border-teal-600 bg-teal-50/60 text-teal-900 font-semibold ring-1 ring-teal-600"
-                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                }`}
-              >
-                <Sun className="h-4 w-4 text-amber-500" />
-                <div>
-                  <span className="block text-xs">Light (Standard)</span>
-                  <span className="text-[10px] text-slate-400 block font-normal">
-                    High contrast daylight
-                  </span>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setTheme("dark")}
-                className={`p-3 rounded-lg border text-left transition-all flex items-center gap-2.5 ${
-                  theme === "dark"
-                    ? "border-teal-600 bg-teal-50/60 text-teal-900 font-semibold ring-1 ring-teal-600"
-                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                }`}
-              >
-                <Moon className="h-4 w-4 text-indigo-500" />
-                <div>
-                  <span className="block text-xs">Sleek Dark Mode</span>
-                  <span className="text-[10px] text-slate-400 block font-normal">
-                    Reduced night glare
-                  </span>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setTheme("system")}
-                className={`p-3 rounded-lg border text-left transition-all flex items-center gap-2.5 ${
-                  theme === "system"
-                    ? "border-teal-600 bg-teal-50/60 text-teal-900 font-semibold ring-1 ring-teal-600"
-                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                }`}
-              >
-                <Laptop className="h-4 w-4 text-slate-500" />
-                <div>
-                  <span className="block text-xs">System Match</span>
-                  <span className="text-[10px] text-slate-400 block font-normal">
-                    Sync with OS settings
-                  </span>
-                </div>
-              </button>
-            </div>
-          </div>
 
           {/* Regional Formats & Routing */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
@@ -210,7 +175,17 @@ export function SystemPreferencesSection() {
             </div>
           </div>
 
-          <div className="flex justify-end pt-3 border-t border-slate-100">
+          <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleResetDefaults}
+              className="text-xs text-slate-600 hover:text-slate-900 h-8.5 gap-1.5"
+            >
+              <RotateCcw className="h-3.5 w-3.5 text-slate-500" />
+              Reset to Defaults
+            </Button>
             <Button
               type="submit"
               size="sm"

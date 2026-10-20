@@ -54,7 +54,7 @@ export function DashboardView({ initialData }: DashboardViewProps) {
   const [medicines, setMedicines] = React.useState<Medicine[]>([]);
   const [fpClients, setFpClients] = React.useState<FPClient[]>([]);
 
-  // Hydrate from stored data on client mount
+  // Hydrate from stored data on client mount and sync with Supabase
   React.useEffect(() => {
     setPatients(getStoredPatients());
     setConsultations(getStoredConsultations());
@@ -63,6 +63,17 @@ export function DashboardView({ initialData }: DashboardViewProps) {
     setMaternalRecords(getInitialMaternalRecords());
     setMedicines(getStoredPharmacyMedicines());
     setFpClients(getStoredFPClients());
+
+    // Fetch live patients from Supabase
+    import("@/lib/supabase/services/patients-service").then(({ fetchPatientsFromSupabase }) => {
+      fetchPatientsFromSupabase()
+        .then((sbPatients) => {
+          if (sbPatients !== null) {
+            setPatients(sbPatients);
+          }
+        })
+        .catch(() => {});
+    });
   }, []);
 
   // Formatted date string for Philippine context

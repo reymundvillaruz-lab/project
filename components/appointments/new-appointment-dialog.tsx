@@ -34,6 +34,9 @@ import {
   STANDARD_BHW_OPTIONS,
 } from "@/lib/appointment-utils";
 
+import { PatientRegistrySelect } from "@/components/patients/patient-registry-select";
+import { MockPatient } from "@/lib/mock-data/patients";
+
 interface NewAppointmentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -52,6 +55,7 @@ export function NewAppointmentDialog({
   const isEditing = Boolean(appointmentToEdit);
 
   // Form states
+  const [selectedRegistryPatient, setSelectedRegistryPatient] = React.useState<MockPatient | null>(null);
   const [patientName, setPatientName] = React.useState("");
   const [patientId, setPatientId] = React.useState("");
   const [patientContact, setPatientContact] = React.useState("");
@@ -137,8 +141,8 @@ export function NewAppointmentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent maxWidth="max-w-xl">
-        <DialogHeader className="border-b border-slate-100 pb-3">
+      <DialogContent maxWidth="max-w-xl" className="max-h-[90vh] flex flex-col p-0 overflow-hidden">
+        <DialogHeader className="border-b border-slate-100 p-5 pb-3 shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-teal-50 border border-teal-200 text-teal-700">
               <CalendarClock className="h-5 w-5" />
@@ -156,13 +160,35 @@ export function NewAppointmentDialog({
           </div>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="px-5 py-4 space-y-4">
+        <form onSubmit={handleSubmit} className="flex flex-col min-h-0 flex-1 overflow-hidden">
+          <div className="flex-1 overflow-y-auto p-5 space-y-4">
           {/* Patient Details */}
           <div className="space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
               <User className="h-3.5 w-3.5 text-teal-700" />
               Patient Information
             </h4>
+
+            {/* Quick Select from Centralized Patient Registry */}
+            <PatientRegistrySelect
+              selectedPatient={selectedRegistryPatient}
+              onSelectPatient={(patient) => {
+                setSelectedRegistryPatient(patient);
+                setPatientName(patient.fullName);
+                setPatientId(patient.patientIdNumber || patient.id);
+                setPatientContact(patient.contact || "");
+                setErrors((prev) => {
+                  const copy = { ...prev };
+                  delete copy.patientName;
+                  return copy;
+                });
+              }}
+              onClearSelection={() => {
+                setSelectedRegistryPatient(null);
+              }}
+              label="Find & Select Registered Resident"
+              helperText="Resident already filled up in the Patient Registry? Select them to automatically populate info."
+            />
 
             <div className="space-y-1">
               <Label htmlFor="patientName" className="text-xs">
@@ -338,7 +364,9 @@ export function NewAppointmentDialog({
             />
           </div>
 
-          <DialogFooter className="pt-2 border-t border-slate-100">
+          </div>
+
+          <DialogFooter className="shrink-0 border-t border-slate-100 bg-slate-50/80 px-5 py-3 flex items-center justify-end gap-2">
             <Button
               type="button"
               variant="outline"
@@ -351,7 +379,7 @@ export function NewAppointmentDialog({
             <Button
               type="submit"
               size="sm"
-              className="bg-teal-700 hover:bg-teal-800 text-xs shadow-xs"
+              className="bg-teal-700 hover:bg-teal-800 text-white text-xs shadow-xs"
             >
               {isEditing ? (
                 <>

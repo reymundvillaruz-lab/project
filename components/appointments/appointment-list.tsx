@@ -11,7 +11,7 @@ import {
   CheckCheck,
   XCircle,
   UserX,
-  MoreVertical,
+  Trash2,
   Calendar,
   Clock,
   User,
@@ -31,6 +31,14 @@ import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
@@ -44,6 +52,8 @@ import {
   AppointmentFiltersState,
 } from "@/types/appointment";
 import { AppointmentStatusBadge } from "./appointment-status-badge";
+import { Pagination } from "@/components/ui/pagination";
+import { useSharedPatients } from "@/lib/patient-sync";
 import {
   formatAppointmentDate,
   formatTime12h,
@@ -74,11 +84,15 @@ export function AppointmentList({
   onDeleteAppointment,
   onNewAppointment,
 }: AppointmentListProps) {
+  const { isPatientRegistered } = useSharedPatients();
   const [searchQuery, setSearchQuery] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<string>("all");
   const [purposeFilter, setPurposeFilter] = React.useState<string>("all");
   const [bhwFilter, setBhwFilter] = React.useState<string>("all");
   const [dateFilter, setDateFilter] = React.useState<string>("");
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const [appointmentToDelete, setAppointmentToDelete] = React.useState<Appointment | null>(null);
+  const PAGE_SIZE = 10;
 
   // Filter appointments
   const filteredAppointments = React.useMemo(() => {
@@ -148,6 +162,19 @@ export function AppointmentList({
       return a.time.localeCompare(b.time);
     });
   }, [filteredAppointments]);
+
+  // Reset to first page whenever filters or timeframe change
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [filteredAppointments.length, activeTimeframe]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedAppointments.length / PAGE_SIZE));
+  const safePage = Math.min(Math.max(1, currentPage), totalPages);
+
+  const paginatedAppointments = React.useMemo(() => {
+    const startIndex = (safePage - 1) * PAGE_SIZE;
+    return sortedAppointments.slice(startIndex, startIndex + PAGE_SIZE);
+  }, [sortedAppointments, safePage]);
 
   const hasActiveFilters =
     searchQuery.trim() !== "" ||
@@ -329,7 +356,8 @@ export function AppointmentList({
               />
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+              <div className="overflow-x-auto">
               <Table className="text-xs">
                 <TableHeader className="bg-slate-50 border-y border-slate-200">
                   <TableRow>
@@ -351,47 +379,60 @@ export function AppointmentList({
                     <TableHead className="min-w-[150px] font-semibold text-slate-700">
                       Notes
                     </TableHead>
-                    <TableHead className="w-[80px] text-right font-semibold text-slate-700">
+                    <TableHead className="min-w-[190px] text-right font-semibold text-slate-700">
                       Actions
                     </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sortedAppointments.map((apt) => (
-                    <TableRow key={apt.id} className="hover:bg-slate-50/70">
-                      {/* Date & Time */}
-                      <TableCell>
-                        <div className="space-y-0.5">
-                          <span className="font-semibold text-slate-900 block font-mono">
-                            {apt.date}
-                          </span>
-                          <span className="text-[11px] text-slate-500 font-medium flex items-center gap-1">
-                            <Clock className="h-3 w-3 text-slate-400" />
-                            {formatTime12h(apt.time)}
-                          </span>
-                        </div>
-                      </TableCell>
-
-                      {/* Patient */}
-                      <TableCell>
-                        <div className="space-y-0.5">
-                          <button
-                            onClick={() => onViewDetails(apt)}
-                            className="font-semibold text-slate-900 hover:text-teal-700 hover:underline text-left block"
-                          >
-                            {apt.patientName}
-                          </button>
-                          <div className="flex items-center gap-1 text-[11px] text-slate-500 font-mono">
-                            <span>{apt.patientId || apt.id}</span>
-                            {apt.patientContact && (
-                              <>
-                                <span>&bull;</span>
-                                <span>{apt.patientContact}</span>
-                              </>
-                            )}
+                  {paginatedAppointments.map((apt) => {
+                    const inRegistry = isPatientRegistered(apt.patientId || apt.patientName);
+                    return (
+                      <TableRow key={apt.id} className="hover:bg-slate-50/70">
+                        {/* Date & Time */}
+                        <TableCell>
+                          <div className="space-y-0.5">
+                            <span className="font-semibold text-slate-900 block font-mono">
+                              {apt.date}
+                            </span>
+                            <span className="text-[11px] text-slate-500 font-medium flex items-center gap-1">
+                              <Clock className="h-3 w-3 text-slate-400" />
+                              {formatTime12h(apt.time)}
+                            </span>
                           </div>
-                        </div>
-                      </TableCell>
+                        </TableCell>
+
+                        {/* Patient */}
+                        <TableCell>
+                          <div className="space-y-0.5">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <button
+                                onClick={() => onViewDetails(apt)}
+                                className="font-semibold text-slate-900 hover:text-teal-700 hover:underline text-left block"
+                              >
+                                {apt.patientName}
+                              </button>
+                              {inRegistry && (
+                                <span
+                                  className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200"
+                                  title="Verified: Patient record exists in Patient Registry"
+                                >
+                                  <CheckCircle2 className="h-2.5 w-2.5 text-emerald-600" />
+                                  In Registry
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1 text-[11px] text-slate-500 font-mono">
+                              <span>{apt.patientId || apt.id}</span>
+                              {apt.patientContact && (
+                                <>
+                                  <span>&bull;</span>
+                                  <span>{apt.patientContact}</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </TableCell>
 
                       {/* Purpose */}
                       <TableCell>
@@ -416,89 +457,111 @@ export function AppointmentList({
                       </TableCell>
 
                       {/* Actions */}
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-slate-500 hover:text-slate-900"
-                            >
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="text-xs">
-                            <DropdownMenuItem
-                              onClick={() => onViewDetails(apt)}
-                              className="text-xs gap-1.5"
-                            >
-                              <Eye className="h-3.5 w-3.5 text-slate-500" />
-                              View Details
-                            </DropdownMenuItem>
+                      <TableCell className="text-right py-2 whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => onViewDetails(apt)}
+                            className="h-7 px-2 text-xs text-teal-700 hover:bg-teal-50 hover:text-teal-900"
+                            title="View Details"
+                          >
+                            <Eye className="h-3.5 w-3.5 mr-1" />
+                            <span>View</span>
+                          </Button>
 
-                            <DropdownMenuItem
-                              onClick={() => onEditAppointment(apt)}
-                              className="text-xs gap-1.5"
-                            >
-                              <Edit3 className="h-3.5 w-3.5 text-slate-500" />
-                              Edit Appointment
-                            </DropdownMenuItem>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => onEditAppointment(apt)}
+                            className="h-7 px-2 text-xs text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                            title="Edit Appointment"
+                          >
+                            <Edit3 className="h-3.5 w-3.5 mr-1" />
+                            <span>Edit</span>
+                          </Button>
 
-                            <DropdownMenuSeparator />
-                            <DropdownMenuLabel className="text-[10px] text-slate-400 font-semibold uppercase">
-                              Update Status
-                            </DropdownMenuLabel>
-
-                            {apt.status !== "Confirmed" && (
-                              <DropdownMenuItem
-                                onClick={() => onUpdateStatus(apt.id, "Confirmed")}
-                                className="text-xs gap-1.5 text-teal-800"
-                              >
-                                <CheckCircle2 className="h-3.5 w-3.5 text-teal-600" />
-                                Mark as Confirmed
-                              </DropdownMenuItem>
-                            )}
-
-                            {apt.status !== "Completed" && (
-                              <DropdownMenuItem
-                                onClick={() => onUpdateStatus(apt.id, "Completed")}
-                                className="text-xs gap-1.5 text-emerald-800"
-                              >
-                                <CheckCheck className="h-3.5 w-3.5 text-emerald-600" />
-                                Mark as Completed
-                              </DropdownMenuItem>
-                            )}
-
-                            {apt.status !== "No Show" && (
-                              <DropdownMenuItem
-                                onClick={() => onUpdateStatus(apt.id, "No Show")}
-                                className="text-xs gap-1.5 text-amber-900"
-                              >
-                                <UserX className="h-3.5 w-3.5 text-amber-700" />
-                                Mark as No Show
-                              </DropdownMenuItem>
-                            )}
-
-                            {apt.status !== "Cancelled" && (
-                              <DropdownMenuItem
-                                onClick={() => onUpdateStatus(apt.id, "Cancelled")}
-                                className="text-xs gap-1.5 text-rose-800"
-                              >
-                                <XCircle className="h-3.5 w-3.5 text-rose-600" />
-                                Cancel Visit
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setAppointmentToDelete(apt)}
+                            className="h-7 px-2 text-xs text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                            title="Delete Appointment"
+                          >
+                            <Trash2 className="h-3.5 w-3.5 mr-1" />
+                            <span>Delete</span>
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
-                  ))}
+                  );
+                })}
                 </TableBody>
               </Table>
             </div>
+
+            {/* 10-Appointment Pagination Bar */}
+            <Pagination
+              currentPage={safePage}
+              totalItems={sortedAppointments.length}
+              pageSize={PAGE_SIZE}
+              onPageChange={setCurrentPage}
+              itemName="appointments"
+            />
+          </>
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Modal */}
+      <Dialog
+        open={!!appointmentToDelete}
+        onOpenChange={(open) => {
+          if (!open) setAppointmentToDelete(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-rose-700 flex items-center gap-2 text-base">
+              <Trash2 className="h-5 w-5 text-rose-600" />
+              Delete Appointment
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-600 pt-1 leading-relaxed">
+              Are you sure you want to permanently delete the appointment for{" "}
+              <strong className="text-slate-900">{appointmentToDelete?.patientName}</strong> on{" "}
+              <strong>{appointmentToDelete?.date}</strong>? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0 pt-2 border-t border-slate-100">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setAppointmentToDelete(null)}
+              className="text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => {
+                if (appointmentToDelete) {
+                  onDeleteAppointment(appointmentToDelete.id);
+                  setAppointmentToDelete(null);
+                }
+              }}
+              className="bg-rose-600 hover:bg-rose-700 text-white text-xs gap-1.5"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Confirm Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

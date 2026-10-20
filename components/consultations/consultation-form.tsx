@@ -80,10 +80,25 @@ export function ConsultationForm() {
   const [validationError, setValidationError] = React.useState<string | null>(null);
   const [showToast, setShowToast] = React.useState(false);
 
-  // Load registered patients on client mount
+  // Load registered patients on client mount and sync with Supabase
   React.useEffect(() => {
     const list = getStoredPatients();
     setRegisteredPatients(list);
+
+    // Sync from Supabase in background
+    import("@/lib/supabase/services/patients-service").then(
+      async ({ fetchPatientsFromSupabase }) => {
+        try {
+          const sbPatients = await fetchPatientsFromSupabase();
+          if (sbPatients && sbPatients.length > 0) {
+            setRegisteredPatients(sbPatients);
+            saveStoredPatients(sbPatients);
+          }
+        } catch (e) {
+          console.warn("Could not fetch patients from Supabase in ConsultationForm:", e);
+        }
+      }
+    );
 
     // If paramPatientId is provided, select patient automatically
     if (paramPatientId && !editId) {
@@ -488,11 +503,12 @@ export function ConsultationForm() {
             {selectedPatient ? (
               <div className="rounded-lg border border-teal-200 bg-teal-50/50 p-4 space-y-2 animate-in fade-in">
                 <div className="flex items-center justify-between border-b border-teal-100 pb-2">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-bold text-sm text-teal-950">{selectedPatient.name}</span>
-                    <Badge variant="success" className="text-[10px]">
-                      Selected Patient
-                    </Badge>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-bold text-white shadow-2xs">
+                      <CheckCircle2 className="h-2.5 w-2.5" />
+                      Verified: Registered in Patient Registry
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-xs font-bold text-teal-800 bg-white px-2 py-0.5 rounded border border-teal-200">

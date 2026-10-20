@@ -1,14 +1,10 @@
 import * as React from "react";
 import {
   Pill,
-  User,
-  Calendar,
-  Stethoscope,
-  Clock,
+  Printer,
   CheckCircle2,
   CheckCheck,
   XCircle,
-  FileText,
   Trash2,
   Edit3,
 } from "lucide-react";
@@ -21,9 +17,9 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Prescription, PrescriptionStatus } from "@/types/pharmacy";
 import { PrescriptionStatusBadge } from "./prescription-status-badge";
+import { PrintablePrescriptionSheet } from "./printable-prescription-sheet";
 
 interface PrescriptionDetailDialogProps {
   open: boolean;
@@ -44,113 +40,67 @@ export function PrescriptionDetailDialog({
 }: PrescriptionDetailDialogProps) {
   if (!prescription) return null;
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent maxWidth="max-w-lg">
-        <DialogHeader className="border-b border-slate-100 pb-3">
-          <div className="flex items-center justify-between">
+      <DialogContent maxWidth="max-w-3xl" className="max-h-[90vh] flex flex-col p-0 overflow-hidden">
+        <DialogHeader className="border-b border-slate-100 p-5 pb-3 shrink-0">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-teal-50 border border-teal-200 text-teal-700">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-700">
                 <Pill className="h-5 w-5" />
               </div>
               <div>
-                <DialogTitle className="flex items-center gap-2">
+                <DialogTitle className="flex items-center gap-2 text-base">
                   <span>Prescription {prescription.id}</span>
                 </DialogTitle>
-                <DialogDescription>
-                  Issued on {prescription.date} by {prescription.prescriber}
+                <DialogDescription className="text-xs">
+                  Official Medical Prescription Record • {prescription.date}
                 </DialogDescription>
               </div>
             </div>
-            <PrescriptionStatusBadge status={prescription.status} />
+
+            <div className="flex items-center gap-2">
+              <PrescriptionStatusBadge status={prescription.status} />
+              <Button
+                type="button"
+                size="sm"
+                onClick={handlePrint}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs gap-1.5 h-8 shadow-xs"
+              >
+                <Printer className="h-3.5 w-3.5" />
+                Print Rx
+              </Button>
+            </div>
           </div>
         </DialogHeader>
 
-        <div className="px-5 py-4 space-y-4 text-xs">
-          {/* Patient Header Card */}
-          <div className="rounded-lg border border-teal-200 bg-teal-50/60 p-3.5 flex items-center justify-between">
-            <div className="space-y-0.5">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-teal-800">
-                Patient
-              </span>
-              <p className="text-base font-bold text-slate-900">
-                {prescription.patientName}
-              </p>
-              <p className="text-[11px] text-slate-600 font-mono">
-                {prescription.patientId || "No patient ID"}
-                {prescription.patientContact ? ` • ${prescription.patientContact}` : ""}
-              </p>
-            </div>
-            <div className="text-right">
-              <span className="text-[11px] text-teal-800 font-semibold block">Date Issued</span>
-              <p className="font-mono font-medium text-slate-900 text-xs">{prescription.date}</p>
-            </div>
+        {/* Prescription Sheet Display */}
+        <div className="flex-1 overflow-y-auto min-h-0 p-4 sm:p-5 space-y-4 bg-slate-50/50">
+          <div className="flex justify-center">
+            <PrintablePrescriptionSheet
+              prescription={prescription}
+              showPrintButton={false}
+              className="w-full"
+            />
           </div>
 
-          {/* Rx Medication Order Card */}
-          <div className="rounded-lg border border-slate-200 bg-white p-3.5 space-y-3">
-            <div className="border-b border-slate-100 pb-2">
-              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                Prescribed Drug &amp; Formulation
-              </span>
-              <p className="text-sm font-bold text-teal-900 mt-0.5">
-                {prescription.medicine}
-              </p>
-            </div>
-
-            <div className="grid grid-cols-3 gap-3 py-1">
-              <div>
-                <span className="text-slate-500 block text-[11px]">Dosage</span>
-                <span className="font-semibold text-slate-900">{prescription.dosage}</span>
-              </div>
-              <div>
-                <span className="text-slate-500 block text-[11px]">Duration</span>
-                <span className="font-semibold text-slate-900">{prescription.duration}</span>
-              </div>
-              <div>
-                <span className="text-slate-500 block text-[11px]">Dispense Quantity</span>
-                <span className="font-semibold text-slate-900">
-                  {prescription.quantityToDispense ? `${prescription.quantityToDispense} units` : "As directed"}
-                </span>
-              </div>
-            </div>
-
-            <div className="pt-2 border-t border-slate-100">
-              <span className="text-slate-500 block text-[11px]">Frequency &amp; Schedule</span>
-              <p className="font-semibold text-slate-800 bg-slate-50 p-2 rounded border border-slate-100 mt-0.5">
-                {prescription.frequency}
-              </p>
-            </div>
-          </div>
-
-          {/* Clinical Instructions / Notes */}
-          <div className="space-y-1">
-            <span className="text-slate-500 font-semibold flex items-center gap-1.5 text-[11px]">
-              <FileText className="h-3.5 w-3.5 text-slate-400" />
-              Special Instructions &amp; Warnings
+          {/* Quick Dispensation & Workflow Actions Bar */}
+          <div className="rounded-lg border border-slate-200 bg-white p-3.5 space-y-2">
+            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+              Dispensation &amp; Pharmacy Actions
             </span>
-            <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-3 text-slate-700 min-h-[50px] whitespace-pre-wrap">
-              {prescription.notes || (
-                <span className="text-slate-400 italic">
-                  No special precautions or dietary instructions noted.
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Quick Status Update Actions */}
-          <div className="pt-2 border-t border-slate-100 space-y-1.5">
-            <span className="text-[11px] font-semibold text-slate-500 block uppercase tracking-wider">
-              Dispensation &amp; Workflow Actions
-            </span>
-            <div className="flex flex-wrap items-center gap-1.5">
+            <div className="flex flex-wrap items-center gap-2">
               {prescription.status !== "Dispensed" && (
                 <Button
                   type="button"
                   size="sm"
                   variant="outline"
                   onClick={() => onUpdateStatus(prescription.id, "Dispensed")}
-                  className="h-7 text-xs gap-1 border-teal-300 text-teal-800 hover:bg-teal-50"
+                  className="h-8 text-xs gap-1.5 border-teal-300 text-teal-800 hover:bg-teal-50"
                 >
                   <CheckCircle2 className="h-3.5 w-3.5 text-teal-600" />
                   Mark as Dispensed
@@ -163,7 +113,7 @@ export function PrescriptionDetailDialog({
                   size="sm"
                   variant="outline"
                   onClick={() => onUpdateStatus(prescription.id, "Completed")}
-                  className="h-7 text-xs gap-1 border-emerald-300 text-emerald-800 hover:bg-emerald-50"
+                  className="h-8 text-xs gap-1.5 border-emerald-300 text-emerald-800 hover:bg-emerald-50"
                 >
                   <CheckCheck className="h-3.5 w-3.5 text-emerald-600" />
                   Mark as Completed
@@ -176,7 +126,7 @@ export function PrescriptionDetailDialog({
                   size="sm"
                   variant="outline"
                   onClick={() => onUpdateStatus(prescription.id, "Cancelled")}
-                  className="h-7 text-xs gap-1 border-rose-300 text-rose-800 hover:bg-rose-50"
+                  className="h-8 text-xs gap-1.5 border-rose-300 text-rose-800 hover:bg-rose-50"
                 >
                   <XCircle className="h-3.5 w-3.5 text-rose-600" />
                   Cancel Prescription
@@ -189,7 +139,7 @@ export function PrescriptionDetailDialog({
                   size="sm"
                   variant="ghost"
                   onClick={() => onUpdateStatus(prescription.id, "Active")}
-                  className="h-7 text-xs text-slate-500 hover:text-slate-800"
+                  className="h-8 text-xs text-slate-600 hover:text-slate-900"
                 >
                   Reset to Active
                 </Button>
@@ -198,7 +148,7 @@ export function PrescriptionDetailDialog({
           </div>
         </div>
 
-        <DialogFooter className="px-5 py-3 border-t border-slate-100 flex items-center justify-between sm:justify-between">
+        <DialogFooter className="px-5 py-3 border-t border-slate-100 bg-slate-50/80 shrink-0 flex items-center justify-between sm:justify-between">
           <Button
             type="button"
             variant="ghost"
@@ -230,7 +180,7 @@ export function PrescriptionDetailDialog({
                 onOpenChange(false);
                 onEdit(prescription);
               }}
-              className="bg-teal-700 hover:bg-teal-800 text-xs shadow-xs gap-1.5"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs shadow-xs gap-1.5"
             >
               <Edit3 className="h-3.5 w-3.5" />
               Edit Prescription

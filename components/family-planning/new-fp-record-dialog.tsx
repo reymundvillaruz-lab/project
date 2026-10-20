@@ -36,6 +36,8 @@ import {
   FPPhysicalExam,
 } from "@/types/family-planning";
 import { getTodayDateString } from "@/lib/family-planning-utils";
+import { PatientRegistrySelect } from "@/components/patients/patient-registry-select";
+import { MockPatient } from "@/lib/mock-data/patients";
 
 interface NewFPRecordDialogProps {
   open: boolean;
@@ -115,6 +117,7 @@ export function NewFPRecordDialog({
 
   // Form Tabs
   const [activeTab, setActiveTab] = React.useState("clientInfo");
+  const [selectedRegistryPatient, setSelectedRegistryPatient] = React.useState<MockPatient | null>(null);
 
   // Client Information
   const [clientId, setClientId] = React.useState("");
@@ -176,35 +179,35 @@ export function NewFPRecordDialog({
     if (open) {
       if (initialData) {
         // Edit mode: populate existing values
-        setClientId(initialData.id);
+        setClientId(initialData.id || "");
         setPhilhealthNo(initialData.philhealthNo || "");
-        setNhts4PsStatus(initialData.nhts4PsStatus);
-        setLastName(initialData.lastName);
-        setFirstName(initialData.firstName);
+        setNhts4PsStatus(initialData.nhts4PsStatus || "No");
+        setLastName(initialData.lastName || "");
+        setFirstName(initialData.firstName || "");
         setMiddleName(initialData.middleName || "");
-        setBirthdate(initialData.birthdate);
-        setAge(initialData.age.toString());
-        setEducation(initialData.education);
-        setOccupation(initialData.occupation);
-        setAddress(initialData.address);
-        setContactNumber(initialData.contactNumber);
-        setCivilStatus(initialData.civilStatus);
-        setReligion(initialData.religion);
+        setBirthdate(initialData.birthdate || "");
+        setAge(initialData.age != null ? String(initialData.age) : "");
+        setEducation(initialData.education || "High School");
+        setOccupation(initialData.occupation || "");
+        setAddress(initialData.address || "");
+        setContactNumber(initialData.contactNumber || "");
+        setCivilStatus(initialData.civilStatus || "Married");
+        setReligion(initialData.religion || "Roman Catholic");
 
-        setHasSpouse(initialData.hasSpouse);
+        setHasSpouse(initialData.hasSpouse ?? true);
         setSpouseName(initialData.spouseName || "");
         setSpouseBirthdate(initialData.spouseBirthdate || "");
-        setSpouseAge(initialData.spouseAge?.toString() || "");
+        setSpouseAge(initialData.spouseAge != null ? String(initialData.spouseAge) : "");
         setSpouseEducation(initialData.spouseEducation || "High School");
         setSpouseOccupation(initialData.spouseOccupation || "");
 
-        setLivingChildrenTotal(initialData.livingChildrenTotal.toString());
-        setLivingChildrenFemale(initialData.livingChildrenFemale.toString());
-        setLivingChildrenMale(initialData.livingChildrenMale.toString());
-        setPlansForMoreChildren(initialData.plansForMoreChildren);
+        setLivingChildrenTotal(initialData.livingChildrenTotal != null ? String(initialData.livingChildrenTotal) : "0");
+        setLivingChildrenFemale(initialData.livingChildrenFemale != null ? String(initialData.livingChildrenFemale) : "0");
+        setLivingChildrenMale(initialData.livingChildrenMale != null ? String(initialData.livingChildrenMale) : "0");
+        setPlansForMoreChildren(initialData.plansForMoreChildren || "Spacing");
         setMonthlyFamilyIncome(initialData.monthlyFamilyIncome || "");
-        setClientType(initialData.clientType);
-        setReasonForFP(initialData.reasonForFP);
+        setClientType(initialData.clientType || "New Acceptor");
+        setReasonForFP(initialData.reasonForFP || "Spacing");
         setPreviousMethod(initialData.previousMethod || "");
         setCurrentMethod(initialData.currentMethod || "");
         setReasonForChangingMethod(initialData.reasonForChangingMethod || "");
@@ -215,13 +218,13 @@ export function NewFPRecordDialog({
         setVawAssessment(initialData.vawAssessment || DEFAULT_VAW_ASSESSMENT);
         setPhysicalExam(initialData.physicalExam || DEFAULT_PHYSICAL_EXAM);
 
-        setConsentAcknowledged(initialData.consentAcknowledged);
-        setConsentDate(initialData.consentDate);
+        setConsentAcknowledged(Boolean(initialData.consentAcknowledged));
+        setConsentDate(initialData.consentDate || getTodayDateString());
 
-        setProvider(initialData.provider);
+        setProvider(initialData.provider || "");
         setFacility(initialData.facility || "Barangay Health Center");
         setGeneralNotes(initialData.generalNotes || "");
-        setStatus(initialData.status);
+        setStatus(initialData.status || "Active User");
       } else {
         // New record: strictly blank fields
         const todayStr = getTodayDateString();
@@ -449,6 +452,36 @@ export function NewFPRecordDialog({
                   <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 pb-1 border-b border-slate-100">
                     Client Identification (DOH FP Form 1)
                   </h3>
+
+                  {/* Select from Centralized Patient Registry */}
+                  <PatientRegistrySelect
+                    selectedPatient={selectedRegistryPatient}
+                    onSelectPatient={(patient) => {
+                      setSelectedRegistryPatient(patient);
+                      setClientId(patient.patientIdNumber || patient.id);
+                      setLastName(patient.lastName);
+                      setFirstName(patient.firstName);
+                      setMiddleName(patient.middleName || "");
+                      setBirthdate(patient.birthdate || "");
+                      setAge(String(patient.age || ""));
+                      setAddress(patient.address || "");
+                      setPhilhealthNo(patient.phicNo || "");
+                      if (patient.contact) setContactNumber(patient.contact);
+                      if (patient.isNhtsBeneficiary) setNhts4PsStatus("Yes");
+                      if (patient.civilStatus) {
+                        const cs = patient.civilStatus;
+                        if (cs === "Single" || cs === "Married" || cs === "Living-in" || cs === "Widowed" || cs === "Separated") {
+                          setCivilStatus(cs as any);
+                        }
+                      }
+                      if (patient.religion) setReligion(patient.religion);
+                    }}
+                    onClearSelection={() => {
+                      setSelectedRegistryPatient(null);
+                    }}
+                    label="Find & Select Registered Patient (DOH Registry)"
+                    helperText="Resident already registered in Patient Registry? Select them to auto-fill client demographics."
+                  />
 
                   <div className="grid grid-cols-3 gap-3">
                     <div className="space-y-1">

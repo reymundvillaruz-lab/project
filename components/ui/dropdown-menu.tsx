@@ -59,14 +59,42 @@ export function DropdownMenuTrigger({
   children,
   asChild,
   className,
+  onClick,
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & { asChild?: boolean }) {
   const { open, setOpen } = useDropdownMenu();
 
+  if (asChild && React.isValidElement(children)) {
+    const child = children as React.ReactElement<{
+      onClick?: React.MouseEventHandler;
+      className?: string;
+      [key: string]: any;
+    }>;
+
+    return React.cloneElement(child, {
+      ...props,
+      onClick: (e: React.MouseEvent) => {
+        child.props?.onClick?.(e);
+        onClick?.(e as React.MouseEvent<HTMLButtonElement>);
+        if (!e.defaultPrevented) {
+          setOpen((prev) => !prev);
+        }
+      },
+      "aria-expanded": open,
+      "aria-haspopup": "true",
+      className: cn(child.props?.className, className),
+    });
+  }
+
   return (
     <button
       type="button"
-      onClick={() => setOpen((prev) => !prev)}
+      onClick={(e) => {
+        onClick?.(e);
+        if (!e.defaultPrevented) {
+          setOpen((prev) => !prev);
+        }
+      }}
       aria-expanded={open}
       aria-haspopup="true"
       className={cn("outline-none", className)}

@@ -14,7 +14,7 @@ import {
   Pill,
   FileBarChart,
   Settings,
-  LogOut,
+  FolderArchive,
   Activity,
   PanelLeftClose,
   PanelLeftOpen,
@@ -23,6 +23,7 @@ import {
 import { cn } from "@/lib/utils";
 import { MAIN_NAV_ITEMS } from "@/lib/navigation";
 import { DEFAULT_USER_PROFILE } from "@/lib/data/empty-data";
+import { useUser } from "@clerk/nextjs";
 
 // Map icon strings to Lucide components
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -35,6 +36,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   CalendarClock,
   Pill,
   FileBarChart,
+  FolderArchive,
   Settings,
 };
 
@@ -54,19 +56,30 @@ export function Sidebar({
   isMobileDrawer = false,
 }: SidebarProps) {
   const pathname = usePathname();
-  const [showLogoutConfirm, setShowLogoutConfirm] = React.useState(false);
+  const { user } = useUser();
 
   // In mobile drawer, never show collapsed state
   const effectiveCollapsed = isMobileDrawer ? false : isCollapsed;
 
-  const handleLogoutClick = () => {
-    setShowLogoutConfirm(true);
-  };
+  const rawRole = (user?.publicMetadata?.role as string)?.toUpperCase();
+  const userRole: "ADMINISTRATOR" | "BHW" =
+    rawRole === "BHW" ? "BHW" : "ADMINISTRATOR";
 
-  const handleConfirmLogout = () => {
-    setShowLogoutConfirm(false);
-    alert("Signed out successfully. (In Phase 2, this will redirect to Clerk sign-in).");
-  };
+  const displayName =
+    user?.fullName ||
+    user?.firstName ||
+    user?.primaryEmailAddress?.emailAddress ||
+    DEFAULT_USER_PROFILE.name;
+  const displaySub =
+    user?.primaryEmailAddress?.emailAddress || DEFAULT_USER_PROFILE.healthCenter;
+  const initials =
+    displayName
+      .split(" ")
+      .map((n) => n[0])
+      .filter(Boolean)
+      .slice(0, 2)
+      .join("")
+      .toUpperCase() || "AD";
 
   return (
     <aside
@@ -125,7 +138,12 @@ export function Sidebar({
           </div>
         )}
 
-        {MAIN_NAV_ITEMS.map((item) => {
+        {MAIN_NAV_ITEMS.filter((item) => {
+          if (item.allowedRoles && !item.allowedRoles.includes(userRole)) {
+            return false;
+          }
+          return true;
+        }).map((item) => {
           const Icon = iconMap[item.iconName] || LayoutDashboard;
           const isActive =
             pathname === item.href ||
@@ -189,90 +207,65 @@ export function Sidebar({
         })}
       </nav>
 
-      {/* User Info & Logout Area */}
+      {/* User Info Area */}
       <div className="border-t border-slate-800 bg-slate-950/40 p-3">
         {!effectiveCollapsed ? (
-          <div>
-            <div className="flex items-center gap-2.5 rounded-md p-2 bg-slate-800/40">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-teal-800 text-teal-100 text-xs font-bold border border-teal-700/60">
-                AD
+          <div className="flex items-center gap-2.5 rounded-md p-2 bg-slate-800/40">
+            {user?.imageUrl ? (
+              <img
+                src={user.imageUrl}
+                alt={displayName}
+                className="h-8 w-8 shrink-0 rounded-full object-cover border border-teal-600/50"
+              />
+            ) : (
+              <div
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-teal-800 text-teal-100 text-xs font-bold border border-teal-700/60"
+                title={`${displayName} - ${displaySub}`}
+              >
+                {initials}
               </div>
-              <div className="flex flex-col min-w-0 flex-1">
+            )}
+            <div className="flex flex-col min-w-0 flex-1">
+              <div className="flex items-center gap-1.5">
                 <span className="truncate text-xs font-semibold text-slate-200">
-                  {DEFAULT_USER_PROFILE.name}
+                  {displayName}
                 </span>
-                <span className="truncate text-[10px] text-slate-400">
-                  {DEFAULT_USER_PROFILE.healthCenter}
+                <span
+                  className={cn(
+                    "text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0 uppercase tracking-wider",
+                    userRole === "ADMINISTRATOR"
+                      ? "bg-teal-500/20 text-teal-300 border border-teal-500/30"
+                      : "bg-slate-800 text-slate-400 border border-slate-700"
+                  )}
+                >
+                  {userRole}
                 </span>
               </div>
+              <span className="truncate text-[10px] text-slate-400">
+                {displaySub}
+              </span>
             </div>
-
-            {/* Logout Button */}
-            <button
-              type="button"
-              onClick={handleLogoutClick}
-              className="mt-2 flex w-full items-center justify-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium text-slate-400 hover:bg-rose-950/40 hover:text-rose-300 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
-              aria-label="Logout of BHCMS"
-            >
-              <LogOut className="h-3.5 w-3.5" />
-              <span>Logout</span>
-            </button>
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-2">
-            <div
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-teal-800 text-teal-100 text-xs font-bold border border-teal-700/60"
-              title={`${DEFAULT_USER_PROFILE.name} - ${DEFAULT_USER_PROFILE.healthCenter}`}
-            >
-              AD
-            </div>
-            <button
-              type="button"
-              onClick={handleLogoutClick}
-              className="flex h-8 w-8 items-center justify-center rounded-md text-slate-400 hover:bg-rose-950/50 hover:text-rose-300 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
-              title="Logout"
-              aria-label="Logout of BHCMS"
-            >
-              <LogOut className="h-4 w-4" />
-            </button>
+          <div className="flex flex-col items-center">
+            {user?.imageUrl ? (
+              <img
+                src={user.imageUrl}
+                alt={displayName}
+                className="h-8 w-8 shrink-0 rounded-full object-cover border border-teal-600/50"
+                title={`${displayName} - ${displaySub}`}
+              />
+            ) : (
+              <div
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-teal-800 text-teal-100 text-xs font-bold border border-teal-700/60"
+                title={`${displayName} - ${displaySub}`}
+              >
+                {initials}
+              </div>
+            )}
           </div>
         )}
       </div>
-
-      {/* Logout Confirmation Dialog Modal */}
-      {showLogoutConfirm && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="sidebar-logout-title"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
-        >
-          <div className="w-full max-w-sm rounded-lg border border-slate-700 bg-slate-900 p-5 shadow-xl text-slate-100">
-            <h3 id="sidebar-logout-title" className="text-base font-semibold text-white">
-              Confirm Sign Out
-            </h3>
-            <p className="mt-2 text-xs text-slate-300 leading-relaxed">
-              Are you sure you want to sign out of the Barangay Health Care Management System?
-            </p>
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setShowLogoutConfirm(false)}
-                className="rounded-md border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-700 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmLogout}
-                className="rounded-md bg-rose-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-rose-700 transition-colors"
-              >
-                Sign Out
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </aside>
   );
 }

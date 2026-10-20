@@ -35,10 +35,23 @@ export function FamilyPlanningView() {
   const [clients, setClients] = React.useState<FPClient[]>([]);
   const isHydratedRef = React.useRef(false);
 
-  // Hydrate from storage on mount
+  // Hydrate from storage on mount and sync from Supabase
   React.useEffect(() => {
     setClients(getStoredFPClients());
     isHydratedRef.current = true;
+
+    import("@/lib/supabase/services/family-planning-service").then(
+      async ({ fetchFamilyPlanningFromSupabase }) => {
+        try {
+          const sbClients = await fetchFamilyPlanningFromSupabase();
+          if (sbClients && sbClients.length > 0) {
+            setClients(sbClients as unknown as FPClient[]);
+          }
+        } catch (e) {
+          console.warn("Could not fetch FP clients from Supabase:", e);
+        }
+      }
+    );
   }, []);
 
   // Persist to storage on change
@@ -117,6 +130,19 @@ export function FamilyPlanningView() {
         notes: "Next scheduled contraceptive counseling and supply visit",
       };
       savedClient.followUps = [initialFollowUp];
+    }
+  };
+
+  const handleDeleteClient = async (clientId: string) => {
+    setClients((prev) => prev.filter((c) => c.id !== clientId));
+
+    try {
+      const { deleteFPClientFromSupabase } = await import(
+        "@/lib/supabase/services/family-planning-service"
+      );
+      await deleteFPClientFromSupabase(clientId);
+    } catch (e) {
+      console.warn("Could not delete family planning client from Supabase:", e);
     }
   };
 
@@ -364,6 +390,7 @@ export function FamilyPlanningView() {
                 clients={clients}
                 onViewDetails={(c) => handleViewClientDetails(c, "overview")}
                 onEditClient={handleOpenEditClientDialog}
+                onDeleteClient={handleDeleteClient}
                 onViewServiceHistory={(c) => handleViewClientDetails(c, "service-history")}
                 onScheduleFollowUp={(c) => handleOpenScheduleFollowUp(c, null)}
                 onNewClient={handleOpenNewClientDialog}

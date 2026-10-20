@@ -31,9 +31,23 @@ import { AppointmentDetailDialog } from "./appointment-detail-dialog";
 export function AppointmentView() {
   const [appointments, setAppointments] = React.useState<Appointment[]>([]);
 
-  // Hydrate from storage on mount
+  // Hydrate from storage on mount and sync from Supabase
   React.useEffect(() => {
     setAppointments(getStoredAppointments());
+
+    import("@/lib/supabase/services/appointments-service").then(
+      async ({ fetchAppointmentsFromSupabase }) => {
+        try {
+          const sbApts = await fetchAppointmentsFromSupabase();
+          if (sbApts && sbApts.length > 0) {
+            setAppointments(sbApts);
+            saveStoredAppointments(sbApts);
+          }
+        } catch (e) {
+          console.warn("Could not fetch appointments from Supabase:", e);
+        }
+      }
+    );
   }, []);
 
   // Navigation / View modes
@@ -113,6 +127,12 @@ export function AppointmentView() {
       saveStoredAppointments(updated);
       return updated;
     });
+
+    // Delete from Supabase in background
+    import("@/lib/supabase/client").then(({ supabase }) => {
+      supabase.from("appointments").delete().eq("id", appointmentId).then();
+    });
+
     setIsDetailDialogOpen(false);
     setSelectedAppointmentId(null);
   };

@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Pagination } from "@/components/ui/pagination";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -70,6 +71,8 @@ export function FPFollowUpScheduleView({
 }: FPFollowUpScheduleViewProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<string>("all");
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const PAGE_SIZE = 10;
 
   // Flatten all follow-ups across clients
   const allFollowUps = React.useMemo<FollowUpRowItem[]>(() => {
@@ -147,6 +150,19 @@ export function FPFollowUpScheduleView({
       return true;
     });
   }, [allFollowUps, searchQuery, statusFilter]);
+
+  // Reset page when filters change
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [filteredFollowUps.length]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredFollowUps.length / PAGE_SIZE));
+  const safePage = Math.min(Math.max(1, currentPage), totalPages);
+
+  const paginatedFollowUps = React.useMemo(() => {
+    const startIndex = (safePage - 1) * PAGE_SIZE;
+    return filteredFollowUps.slice(startIndex, startIndex + PAGE_SIZE);
+  }, [filteredFollowUps, safePage]);
 
   const hasActiveFilters = searchQuery.trim() !== "" || statusFilter !== "all";
 
@@ -286,7 +302,8 @@ export function FPFollowUpScheduleView({
               />
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+              <div className="overflow-x-auto">
               <Table className="text-xs">
                 <TableHeader className="bg-slate-50 border-y border-slate-200">
                   <TableRow>
@@ -314,7 +331,7 @@ export function FPFollowUpScheduleView({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredFollowUps.map(({ followUp, client, computedStatus }) => (
+                  {paginatedFollowUps.map(({ followUp, client, computedStatus }) => (
                     <TableRow key={followUp.id} className="hover:bg-slate-50/70">
                       {/* Client Column */}
                       <TableCell>
@@ -421,6 +438,16 @@ export function FPFollowUpScheduleView({
                 </TableBody>
               </Table>
             </div>
+
+            {/* 10-Item Follow-up Pagination Bar */}
+            <Pagination
+              currentPage={safePage}
+              totalItems={filteredFollowUps.length}
+              pageSize={PAGE_SIZE}
+              onPageChange={setCurrentPage}
+              itemName="follow-up visits"
+            />
+          </>
           )}
         </CardContent>
       </Card>

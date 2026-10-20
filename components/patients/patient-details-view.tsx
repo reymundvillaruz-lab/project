@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   User,
@@ -19,6 +20,9 @@ import {
   Activity,
   AlertCircle,
   FileText,
+  FileCheck2,
+  Trash2,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,27 +30,113 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
   MockPatient,
   INITIAL_MOCK_PATIENTS,
   getPatientById,
+  deleteStoredPatient,
 } from "@/lib/mock-data/patients";
+import {
+  getPatientByIdFromSupabase,
+  deletePatientFromSupabase,
+} from "@/lib/supabase/services/patients-service";
+import { PhilpenAssessmentTab } from "./philpen-assessment-tab";
 
 interface PatientDetailsViewProps {
   patientId: string;
 }
 
 export function PatientDetailsView({ patientId }: PatientDetailsViewProps) {
+  const router = useRouter();
   const [patient, setPatient] = React.useState<MockPatient | null>(() => {
     return INITIAL_MOCK_PATIENTS.find((p) => p.id.toLowerCase() === patientId.toLowerCase()) || null;
   });
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
+  const [isDeleting, setIsDeleting] = React.useState(false);
 
   React.useEffect(() => {
-    const found = getPatientById(patientId);
-    if (found) {
-      setPatient(found);
+    let isMounted = true;
+    async function loadData() {
+      setIsLoading(true);
+      try {
+        const sbPatient = await getPatientByIdFromSupabase(patientId);
+        const localPatient = getPatientById(patientId);
+
+        if (isMounted) {
+          if (sbPatient) {
+            // If Supabase patient has no philpenRecord, but local has one, merge it
+            if (!sbPatient.philpenRecord && localPatient?.philpenRecord) {
+              sbPatient.philpenRecord = localPatient.philpenRecord;
+            }
+            setPatient(sbPatient);
+            setIsLoading(false);
+            return;
+          }
+
+          if (localPatient) {
+            setPatient(localPatient);
+            setIsLoading(false);
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn("Could not load patient from Supabase:", err);
+      }
+
+      if (isMounted) {
+        const found = getPatientById(patientId);
+        if (found) {
+          setPatient(found);
+        }
+        setIsLoading(false);
+      }
     }
+
+    loadData();
+    return () => {
+      isMounted = false;
+    };
   }, [patientId]);
 
+  const handleDelete = async () => {
+    if (!patient) return;
+    setIsDeleting(true);
+    try {
+      const result = await deletePatientFromSupabase(patient.id);
+      if (result.success) {
+        deleteStoredPatient(patient.id);
+        router.push("/patients");
+      } else {
+        alert(`Failed to delete patient: ${result.error || "Unknown error"}`);
+      }
+    } catch (e: any) {
+      alert(`Error deleting patient: ${e.message}`);
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteConfirm(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4 max-w-4xl mx-auto py-16 text-center">
+        <div className="flex flex-col items-center justify-center gap-3">
+          <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
+          <p className="text-xs text-slate-500 font-medium">
+            Fetching patient record from Supabase...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (!patient) {
     return (
@@ -60,7 +150,7 @@ export function PatientDetailsView({ patientId }: PatientDetailsViewProps) {
         <EmptyState
           icon={User}
           title={`Patient Record Not Found (${patientId})`}
-          description="The requested patient ID was not found in the local registry database."
+          description="The requested patient ID was not found in the Supabase database or local registry."
           action={{
             label: "Return to Patient Registry",
             href: "/patients",
@@ -86,7 +176,7 @@ export function PatientDetailsView({ patientId }: PatientDetailsViewProps) {
                 {patient.fullName}
               </h1>
               <span className="font-mono text-xs font-bold text-teal-800 bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
-                {patient.id}
+                {patient.patientIdNumber || patient.id}
               </span>
               <Badge
                 variant={patient.status === "Active" ? "success" : "warning"}
@@ -96,7 +186,7 @@ export function PatientDetailsView({ patientId }: PatientDetailsViewProps) {
               </Badge>
             </div>
             <p className="text-xs text-slate-500">
-              {patient.barangay} &bull; Registered Barangay Resident &bull; PHILPEN Assessment Verified
+              {patient.barangay} &bull; Registered Barangay Resident &bull; Supabase Synchronized
             </p>
           </div>
         </div>
@@ -109,13 +199,73 @@ export function PatientDetailsView({ patientId }: PatientDetailsViewProps) {
             </Button>
           </Link>
           <Link href={`/consultations/new?patientId=${patient.id}`}>
-            <Button size="sm" className="bg-teal-700 hover:bg-teal-800 text-xs">
+            <Button size="sm" className="bg-teal-700 hover:bg-teal-800 text-xs text-white">
               <Stethoscope className="h-3.5 w-3.5 mr-1.5" />
               New Consultation
             </Button>
           </Link>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowDeleteConfirm(true)}
+            className="text-xs text-rose-600 hover:bg-rose-50 hover:text-rose-800 border-rose-200"
+            title="Delete Patient Record"
+          >
+            <Trash2 className="h-3.5 w-3.5 mr-1" />
+            Delete
+          </Button>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-rose-700 flex items-center gap-2 text-base">
+              <Trash2 className="h-5 w-5 text-rose-600" />
+              Delete Patient Record
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-600 pt-1 leading-relaxed">
+              Are you sure you want to permanently delete the patient record for{" "}
+              <strong className="text-slate-900">{patient.fullName}</strong> (
+              <span className="font-mono text-slate-800">{patient.id}</span>)?
+              <br />
+              <span className="text-rose-600 font-medium mt-1 block">
+                This record and any dependent records will be permanently removed from Supabase.
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4 gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={isDeleting}
+              onClick={() => setShowDeleteConfirm(false)}
+              className="text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              disabled={isDeleting}
+              onClick={handleDelete}
+              className="text-xs bg-rose-600 hover:bg-rose-700 text-white"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                  Deleting from Supabase...
+                </>
+              ) : (
+                "Confirm Delete"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* 2. Patient Overview Summary Card */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-2xs">
@@ -138,31 +288,58 @@ export function PatientDetailsView({ patientId }: PatientDetailsViewProps) {
         <div className="space-y-1 text-xs border-t md:border-t-0 md:border-l border-slate-100 pt-3 md:pt-0 md:pl-4">
           <span className="text-slate-400 block text-[10px] font-semibold uppercase">Clinical Baseline</span>
           <p className="font-medium text-slate-800">
-            Last BP: <span className="font-mono text-teal-800">{patient.healthInfo.lastBp}</span>
+            Last BP:{" "}
+            <span className="font-mono text-teal-800">
+              {patient.philpenRecord?.ncdRiskFactors?.bloodPressureSystolic &&
+              patient.philpenRecord?.ncdRiskFactors?.bloodPressureDiastolic
+                ? `${patient.philpenRecord.ncdRiskFactors.bloodPressureSystolic}/${patient.philpenRecord.ncdRiskFactors.bloodPressureDiastolic} mmHg`
+                : patient.healthInfo?.lastBp || "120/80"}
+            </span>
           </p>
           <p className="font-medium text-slate-800">
-            Last BMI: <span className="font-mono text-slate-700">{patient.healthInfo.lastBmi}</span>
+            Last BMI:{" "}
+            <span className="font-mono text-slate-700">
+              {patient.philpenRecord?.ncdRiskFactors?.bmi
+                ? `${patient.philpenRecord.ncdRiskFactors.bmi} kg/m²`
+                : patient.healthInfo?.lastBmi || "22.5"}
+            </span>
           </p>
-          <p className="text-[11px] text-slate-500">Blood Type: {patient.healthInfo.bloodType}</p>
+          <p className="text-[11px] text-slate-500">Blood Type: {patient.healthInfo?.bloodType || "O+"}</p>
         </div>
 
         <div className="space-y-1 text-xs border-t md:border-t-0 md:border-l border-slate-100 pt-3 md:pt-0 md:pl-4">
           <span className="text-slate-400 block text-[10px] font-semibold uppercase">PHILPEN Status</span>
           <Badge
-            variant={patient.healthInfo.philpenStatus === "High Risk" ? "destructive" : "success"}
+            variant={
+              (patient.philpenRecord?.redFlags &&
+                Object.values(patient.philpenRecord.redFlags).some((v) => v === "Yes")) ||
+              patient.healthInfo?.philpenStatus === "High Risk"
+                ? "destructive"
+                : "success"
+            }
             className="text-[11px]"
           >
-            {patient.healthInfo.philpenStatus}
+            {patient.philpenRecord?.redFlags &&
+            Object.values(patient.philpenRecord.redFlags).some((v) => v === "Yes")
+              ? "High Risk"
+              : patient.healthInfo?.philpenStatus || "Completed"}
           </Badge>
           <p className="text-[11px] text-slate-500 pt-1">
-            Last Visit: <span className="font-medium text-slate-700">{patient.lastVisit}</span>
+            Last Visit: <span className="font-medium text-slate-700">{patient.lastVisit || "Recent"}</span>
           </p>
         </div>
       </div>
 
       {/* 3. Detailed Tabs Section */}
-      <Tabs defaultValue="patient-info">
+      <Tabs defaultValue="philpen-form">
         <TabsList className="w-full flex-wrap h-auto gap-1 bg-slate-100 p-1.5 rounded-lg">
+          <TabsTrigger
+            value="philpen-form"
+            className="text-xs font-semibold data-[state=active]:bg-teal-700 data-[state=active]:text-white shadow-2xs"
+          >
+            <FileCheck2 className="h-3.5 w-3.5 mr-1" />
+            PHILPEN Risk Assessment Record
+          </TabsTrigger>
           <TabsTrigger value="patient-info" className="text-xs">
             <User className="h-3.5 w-3.5 mr-1" />
             Patient Information
@@ -200,6 +377,11 @@ export function PatientDetailsView({ patientId }: PatientDetailsViewProps) {
             Prescriptions
           </TabsTrigger>
         </TabsList>
+
+        {/* TAB: PHILPEN RISK ASSESSMENT RECORD */}
+        <TabsContent value="philpen-form">
+          <PhilpenAssessmentTab patient={patient} />
+        </TabsContent>
 
         {/* TAB 1: PATIENT INFORMATION */}
         <TabsContent value="patient-info">
@@ -370,23 +552,41 @@ export function PatientDetailsView({ patientId }: PatientDetailsViewProps) {
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs">
                 <div>
                   <span className="text-slate-400 block">Blood Group</span>
-                  <span className="font-bold text-slate-900 text-base">{patient.healthInfo.bloodType}</span>
+                  <span className="font-bold text-slate-900 text-base">{patient.healthInfo.bloodType || "O+"}</span>
                 </div>
                 <div>
                   <span className="text-slate-400 block">Latest Blood Pressure</span>
-                  <span className="font-mono font-bold text-teal-800 text-base">{patient.healthInfo.lastBp}</span>
+                  <span className="font-mono font-bold text-teal-800 text-base">
+                    {patient.philpenRecord?.ncdRiskFactors?.bloodPressureSystolic &&
+                    patient.philpenRecord?.ncdRiskFactors?.bloodPressureDiastolic
+                      ? `${patient.philpenRecord.ncdRiskFactors.bloodPressureSystolic}/${patient.philpenRecord.ncdRiskFactors.bloodPressureDiastolic} mmHg`
+                      : patient.healthInfo.lastBp}
+                  </span>
                 </div>
                 <div>
                   <span className="text-slate-400 block">Latest Body Mass Index</span>
-                  <span className="font-mono font-bold text-slate-800 text-base">{patient.healthInfo.lastBmi}</span>
+                  <span className="font-mono font-bold text-slate-800 text-base">
+                    {patient.philpenRecord?.ncdRiskFactors?.bmi
+                      ? `${patient.philpenRecord.ncdRiskFactors.bmi} kg/m²`
+                      : patient.healthInfo.lastBmi}
+                  </span>
                 </div>
                 <div>
                   <span className="text-slate-400 block">PHILPEN NCD Risk</span>
                   <Badge
-                    variant={patient.healthInfo.philpenStatus === "High Risk" ? "destructive" : "success"}
+                    variant={
+                      (patient.philpenRecord?.redFlags &&
+                        Object.values(patient.philpenRecord.redFlags).some((v) => v === "Yes")) ||
+                      patient.healthInfo.philpenStatus === "High Risk"
+                        ? "destructive"
+                        : "success"
+                    }
                     className="text-xs mt-1"
                   >
-                    {patient.healthInfo.philpenStatus}
+                    {patient.philpenRecord?.redFlags &&
+                    Object.values(patient.philpenRecord.redFlags).some((v) => v === "Yes")
+                      ? "High Risk (Red Flag)"
+                      : patient.healthInfo.philpenStatus}
                   </Badge>
                 </div>
               </div>

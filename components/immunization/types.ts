@@ -251,6 +251,16 @@ export function saveStoredImmunizationRecords(records: NipPatientRecord[]): void
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(IMMUNIZATION_STORAGE_KEY, JSON.stringify(records));
+    // Sync to Supabase in background
+    if (records.length > 0) {
+      import("@/lib/supabase/services/immunization-service").then(({ saveImmunizationToSupabase }) => {
+        records.forEach((rec) => {
+          saveImmunizationToSupabase(rec).catch((e) =>
+            console.warn("Background Supabase immunization sync error:", e)
+          );
+        });
+      });
+    }
   } catch (e) {
     console.error("Failed to save immunization records to storage", e);
   }

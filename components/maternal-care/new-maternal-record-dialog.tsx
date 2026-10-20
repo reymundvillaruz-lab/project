@@ -31,6 +31,8 @@ import {
   PrenatalVisit,
   MaternalAppointment,
 } from "@/types/maternal-care";
+import { PatientRegistrySelect } from "@/components/patients/patient-registry-select";
+import { MockPatient } from "@/lib/mock-data/patients";
 
 interface NewMaternalRecordDialogProps {
   open: boolean;
@@ -50,6 +52,38 @@ export function NewMaternalRecordDialog({
   initialData,
 }: NewMaternalRecordDialogProps) {
   const isEditing = Boolean(initialData);
+
+  // Patient Registry Integration
+  const [selectedRegistryPatient, setSelectedRegistryPatient] = React.useState<MockPatient | null>(null);
+
+  const handleSelectRegistryPatient = (p: MockPatient | null) => {
+    setSelectedRegistryPatient(p);
+    if (p) {
+      setPatientName(`${p.firstName} ${p.middleName ? p.middleName + " " : ""}${p.lastName}`.trim());
+      if (p.birthdate) {
+        setDateOfBirth(p.birthdate);
+        const birth = new Date(p.birthdate);
+        const today = new Date();
+        if (!isNaN(birth.getTime())) {
+          let calculatedAge = today.getFullYear() - birth.getFullYear();
+          const m = today.getMonth() - birth.getMonth();
+          if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+            calculatedAge--;
+          }
+          if (calculatedAge >= 10 && calculatedAge <= 70) {
+            setAge(calculatedAge.toString());
+          }
+        }
+      } else if (p.age) {
+        setAge(p.age.toString());
+      }
+      if (p.address) setAddress(p.address);
+      const contactVal = p.contactNumber || p.contact;
+      if (contactVal) setContactNumber(contactVal);
+      const phicVal = p.philhealthNumber || p.phicNo;
+      if (phicVal) setPhilhealthNo(phicVal);
+    }
+  };
 
   // Form State
   const [patientName, setPatientName] = React.useState("");
@@ -158,6 +192,8 @@ export function NewMaternalRecordDialog({
         setAppointmentProvider("");
         setAppointmentStatus("Scheduled");
         setAppointmentNotes("");
+
+        setSelectedRegistryPatient(null);
       }
       setErrors({});
     }
@@ -369,6 +405,15 @@ export function NewMaternalRecordDialog({
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
                 A. Patient Information
               </h3>
+            </div>
+
+            {/* Auto-fill from Patient Registry */}
+            <div className="rounded-lg bg-teal-50/50 border border-teal-200/70 p-3 space-y-2">
+              <PatientRegistrySelect
+                selectedPatient={selectedRegistryPatient}
+                onSelectPatient={handleSelectRegistryPatient}
+                label="Find in Patient Registry (Auto-populate Demographics)"
+              />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">

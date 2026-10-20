@@ -22,9 +22,22 @@ export function ConsultationListView() {
     patientId: "all",
   });
 
-  // Hydrate from localStorage on client mount if available
+  // Hydrate from Supabase with localStorage fallback
   React.useEffect(() => {
     setConsultations(getStoredConsultations());
+
+    import("@/lib/supabase/services/consultations-service").then(
+      async ({ fetchConsultationsFromSupabase }) => {
+        try {
+          const sbData = await fetchConsultationsFromSupabase();
+          if (sbData && sbData.length > 0) {
+            setConsultations(sbData);
+          }
+        } catch (e) {
+          console.warn("Could not fetch consultations from Supabase:", e);
+        }
+      }
+    );
   }, []);
 
   const handleFilterChange = (key: keyof ConsultationFiltersState, value: string) => {

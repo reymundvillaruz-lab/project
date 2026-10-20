@@ -5,29 +5,61 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
+import { useSettings, DEFAULT_HEALTH_CENTER } from "@/context/settings-context";
+import { RotateCcw } from "lucide-react";
+
 export function HealthCenterSection() {
-  const [name, setName] = React.useState("Barangay San Jose Health Station");
-  const [barangay, setBarangay] = React.useState("Barangay San Jose");
-  const [municipalityCity, setMunicipalityCity] = React.useState("San Fernando City");
-  const [province, setProvince] = React.useState("Pampanga");
-  const [region, setRegion] = React.useState("Region III - Central Luzon");
-  const [dohFacilityCode, setDohFacilityCode] = React.useState("DOH-NHFR-035412");
-  const [contactNumber, setContactNumber] = React.useState("(045) 961-2400");
-  const [emergencyHotline, setEmergencyHotline] = React.useState("911 / (045) 961-9111");
-  const [operatingHours, setOperatingHours] = React.useState(
-    "Monday to Friday: 8:00 AM – 5:00 PM; On-Call 24/7 for Maternal & Emergency Triage"
-  );
-  const [officialEmail, setOfficialEmail] = React.useState(
-    "sanjose.bhc@sanfernandocity.gov.ph"
-  );
-  const [address, setAddress] = React.useState(
-    "Barangay Health Center Complex, MacArthur Highway, Barangay San Jose"
-  );
+  const { healthCenter, updateHealthCenter } = useSettings();
+
+  const [name, setName] = React.useState(healthCenter.name);
+  const [barangay, setBarangay] = React.useState(healthCenter.barangay);
+  const [municipalityCity, setMunicipalityCity] = React.useState(healthCenter.municipalityCity);
+  const [province, setProvince] = React.useState(healthCenter.province);
+  const [region, setRegion] = React.useState(healthCenter.region);
+  const [dohFacilityCode, setDohFacilityCode] = React.useState(healthCenter.dohFacilityCode);
+  const [contactNumber, setContactNumber] = React.useState(healthCenter.contactNumber);
+  const [emergencyHotline, setEmergencyHotline] = React.useState(healthCenter.emergencyHotline);
+  const [operatingHours, setOperatingHours] = React.useState(healthCenter.operatingHours);
+  const [officialEmail, setOfficialEmail] = React.useState(healthCenter.officialEmail);
+  const [address, setAddress] = React.useState(healthCenter.address);
   const [feedback, setFeedback] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    setName(healthCenter.name);
+    setBarangay(healthCenter.barangay);
+    setMunicipalityCity(healthCenter.municipalityCity);
+    setProvince(healthCenter.province);
+    setRegion(healthCenter.region);
+    setDohFacilityCode(healthCenter.dohFacilityCode);
+    setContactNumber(healthCenter.contactNumber);
+    setEmergencyHotline(healthCenter.emergencyHotline);
+    setOperatingHours(healthCenter.operatingHours);
+    setOfficialEmail(healthCenter.officialEmail);
+    setAddress(healthCenter.address);
+  }, [healthCenter]);
+
+  const handleResetDefaults = () => {
+    updateHealthCenter(DEFAULT_HEALTH_CENTER);
+    setFeedback("Restored default health center station accreditation details.");
+    setTimeout(() => setFeedback(null), 3500);
+  };
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    setFeedback("Health Center information updated successfully.");
+    updateHealthCenter({
+      name: name.trim(),
+      barangay: barangay.trim(),
+      municipalityCity: municipalityCity.trim(),
+      province: province.trim(),
+      region: region.trim(),
+      dohFacilityCode: dohFacilityCode.trim(),
+      contactNumber: contactNumber.trim(),
+      emergencyHotline: emergencyHotline.trim(),
+      operatingHours: operatingHours.trim(),
+      officialEmail: officialEmail.trim(),
+      address: address.trim(),
+    });
+    setFeedback("Health Center information saved and updated across all stations.");
     setTimeout(() => setFeedback(null), 3500);
   };
 
@@ -174,7 +206,17 @@ export function HealthCenterSection() {
             </div>
           </div>
 
-          <div className="flex justify-end pt-3 border-t border-slate-100">
+          <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleResetDefaults}
+              className="text-xs text-slate-600 hover:text-slate-900 h-8.5 gap-1.5"
+            >
+              <RotateCcw className="h-3.5 w-3.5 text-slate-500" />
+              Reset to Defaults
+            </Button>
             <Button
               type="submit"
               size="sm"

@@ -22,6 +22,16 @@ export function saveStoredAppointments(appointments: Appointment[]): void {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(APPOINTMENTS_STORAGE_KEY, JSON.stringify(appointments));
+    // Sync latest appointment to Supabase in background
+    if (appointments.length > 0) {
+      import("@/lib/supabase/services/appointments-service").then(({ saveAppointmentToSupabase }) => {
+        appointments.forEach((apt) => {
+          saveAppointmentToSupabase(apt).catch((e) =>
+            console.warn("Background Supabase appointment sync error:", e)
+          );
+        });
+      });
+    }
   } catch (e) {
     console.error("Failed to save appointments to storage", e);
   }

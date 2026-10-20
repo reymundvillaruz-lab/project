@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import {
   User,
   Building,
@@ -12,7 +13,9 @@ import {
   Shield,
   HelpCircle,
   ExternalLink,
+  FolderArchive,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ProfileSection } from "./profile-section";
 import { HealthCenterSection } from "./health-center-section";
@@ -22,8 +25,11 @@ import { SecuritySection } from "./security-section";
 import { UserManagementSection } from "./user-management-section";
 import { Badge } from "@/components/ui/badge";
 
+import { useSettings } from "@/context/settings-context";
+
 export function SettingsView() {
   const [activeTab, setActiveTab] = React.useState("profile");
+  const { healthCenter } = useSettings();
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-10">
@@ -51,10 +57,10 @@ export function SettingsView() {
             className="text-teal-800 bg-teal-50/60 border-teal-200 text-xs py-1 px-2.5 font-medium"
           >
             <Shield className="h-3 w-3 mr-1 text-teal-600" />
-            Barangay San Jose Health Station
+            {healthCenter.name}
           </Badge>
           <span className="text-[11px] font-mono text-slate-400 bg-slate-100 px-2 py-1 rounded-md border border-slate-200">
-            DOH-NHFR-035412
+            {healthCenter.dohFacilityCode}
           </span>
         </div>
       </div>
@@ -112,6 +118,14 @@ export function SettingsView() {
               Admin &amp; BHW
             </span>
           </TabsTrigger>
+
+          <TabsTrigger
+            value="archives"
+            className="flex items-center gap-2 px-3.5 py-1.5 text-xs rounded-md data-[state=active]:bg-white data-[state=active]:text-teal-900 data-[state=active]:shadow-xs transition-all"
+          >
+            <FolderArchive className="h-3.5 w-3.5 text-teal-700" />
+            <span>Monthly Archives &amp; Reset</span>
+          </TabsTrigger>
         </TabsList>
 
         {/* Section 1: Profile */}
@@ -142,6 +156,37 @@ export function SettingsView() {
         {/* Section 6: User Management */}
         <TabsContent value="users" className="mt-0">
           <UserManagementSection />
+        </TabsContent>
+
+        {/* Section 7: Monthly Archives & Reset */}
+        <TabsContent value="archives" className="mt-0">
+          <div className="space-y-4">
+            <div className="rounded-xl border border-teal-200 bg-linear-to-r from-teal-50 via-emerald-50/40 to-white p-5 shadow-2xs">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <FolderArchive className="h-5 w-5 text-teal-700" />
+                    <h3 className="font-bold text-slate-900 text-sm sm:text-base">
+                      Monthly System Archives &amp; Clean Reset
+                    </h3>
+                  </div>
+                  <p className="text-xs text-slate-600 max-w-2xl leading-relaxed">
+                    Safely archive the active workspace every month into dedicated month folders (January – December).
+                    When archived, the active workspace is cleaned and reset for new operations with zero data loss.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <Link href="/archives">
+                    <Button size="sm" className="bg-teal-700 hover:bg-teal-800 text-xs text-white shadow-xs gap-1.5">
+                      <FolderArchive className="h-3.5 w-3.5" />
+                      Open Monthly Archives
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
         </TabsContent>
       </Tabs>
     </div>

@@ -55,14 +55,40 @@ export function DialogTrigger({
   children,
   asChild,
   className,
+  onClick,
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & { asChild?: boolean }) {
   const { setOpen } = useDialog();
 
+  if (asChild && React.isValidElement(children)) {
+    const child = children as React.ReactElement<{
+      onClick?: React.MouseEventHandler;
+      className?: string;
+      [key: string]: any;
+    }>;
+
+    return React.cloneElement(child, {
+      ...props,
+      onClick: (e: React.MouseEvent) => {
+        child.props?.onClick?.(e);
+        onClick?.(e as React.MouseEvent<HTMLButtonElement>);
+        if (!e.defaultPrevented) {
+          setOpen(true);
+        }
+      },
+      className: cn(child.props?.className, className),
+    });
+  }
+
   return (
     <button
       type="button"
-      onClick={() => setOpen(true)}
+      onClick={(e) => {
+        onClick?.(e);
+        if (!e.defaultPrevented) {
+          setOpen(true);
+        }
+      }}
       className={className}
       {...props}
     >
@@ -73,15 +99,42 @@ export function DialogTrigger({
 
 export function DialogClose({
   children,
+  asChild,
   className,
+  onClick,
   ...props
-}: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & { asChild?: boolean }) {
   const { setOpen } = useDialog();
+
+  if (asChild && React.isValidElement(children)) {
+    const child = children as React.ReactElement<{
+      onClick?: React.MouseEventHandler;
+      className?: string;
+      [key: string]: any;
+    }>;
+
+    return React.cloneElement(child, {
+      ...props,
+      onClick: (e: React.MouseEvent) => {
+        child.props?.onClick?.(e);
+        onClick?.(e as React.MouseEvent<HTMLButtonElement>);
+        if (!e.defaultPrevented) {
+          setOpen(false);
+        }
+      },
+      className: cn(child.props?.className, className),
+    });
+  }
 
   return (
     <button
       type="button"
-      onClick={() => setOpen(false)}
+      onClick={(e) => {
+        onClick?.(e);
+        if (!e.defaultPrevented) {
+          setOpen(false);
+        }
+      }}
       className={className}
       {...props}
     >
@@ -138,7 +191,7 @@ export function DialogContent({
       {/* Dialog Card */}
       <div
         className={cn(
-          "relative z-50 w-full rounded-xl border border-slate-200 bg-white shadow-2xl transition duration-200 my-auto animate-in zoom-in-95 fade-in max-h-[92vh] flex flex-col",
+          "relative z-50 w-full rounded-xl border border-slate-200 bg-white shadow-2xl transition duration-200 my-auto animate-in zoom-in-95 fade-in max-h-[92vh] flex flex-col overflow-hidden",
           maxWidth,
           className
         )}

@@ -119,6 +119,14 @@ export function addStoredConsultation(consultation: MockConsultation): MockConsu
     updated = [consultation, ...current];
   }
   saveStoredConsultations(updated);
+
+  // Sync to Supabase in background
+  import("@/lib/supabase/services/consultations-service").then(({ saveConsultationToSupabase }) => {
+    saveConsultationToSupabase(consultation).catch((e) =>
+      console.warn("Background Supabase consultation sync error:", e)
+    );
+  });
+
   return updated;
 }
 
@@ -126,6 +134,14 @@ export function updateStoredConsultation(consultation: MockConsultation): MockCo
   const current = getStoredConsultations();
   const updated = current.map((c) => (c.id === consultation.id ? consultation : c));
   saveStoredConsultations(updated);
+
+  // Sync to Supabase in background
+  import("@/lib/supabase/services/consultations-service").then(({ saveConsultationToSupabase }) => {
+    saveConsultationToSupabase(consultation).catch((e) =>
+      console.warn("Background Supabase consultation sync error:", e)
+    );
+  });
+
   return updated;
 }
 

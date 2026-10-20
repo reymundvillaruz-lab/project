@@ -25,49 +25,17 @@ import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { HealthStaffUser, StaffRole, StaffStatus } from "@/types/settings";
 import { AddUserDialog } from "./add-user-dialog";
-
-// Strictly EMPTY - Zero mock staff users
-const INITIAL_STAFF_USERS: HealthStaffUser[] = [];
-
-const STAFF_STORAGE_KEY = "bhcms_staff_users_v1";
-
-export function getStoredStaffUsers(): HealthStaffUser[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(STAFF_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-export function saveStoredStaffUsers(users: HealthStaffUser[]): void {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(STAFF_STORAGE_KEY, JSON.stringify(users));
-  } catch (e) {
-    console.error("Failed to save staff users to storage", e);
-  }
-}
+import { useSettings } from "@/context/settings-context";
 
 export function UserManagementSection() {
-  const [users, setUsers] = React.useState<HealthStaffUser[]>(INITIAL_STAFF_USERS);
-  const isHydratedRef = React.useRef(false);
-
-  // Hydrate from storage on mount
-  React.useEffect(() => {
-    setUsers(getStoredStaffUsers());
-    isHydratedRef.current = true;
-  }, []);
-
-  // Persist to storage on change
-  React.useEffect(() => {
-    if (isHydratedRef.current) {
-      saveStoredStaffUsers(users);
-    }
-  }, [users]);
+  const {
+    staffUsers,
+    addStaffUser,
+    updateStaffUser,
+    toggleStaffStatus,
+    resetStaffPassword,
+    deleteStaffUser,
+  } = useSettings();
 
   const [searchTerm, setSearchTerm] = React.useState("");
   const [roleFilter, setRoleFilter] = React.useState<string>("ALL");
@@ -79,7 +47,7 @@ export function UserManagementSection() {
 
   const showFeedback = (msg: string) => {
     setFeedback(msg);
-    setTimeout(() => setFeedback(null), 4000);
+    setTimeout(() => setFeedback(null), 5000);
   };
 
   const handleOpenAdd = () => {
@@ -94,42 +62,36 @@ export function UserManagementSection() {
 
   const handleSaveUser = (savedUser: HealthStaffUser) => {
     if (userToEdit) {
-      setUsers((prev) =>
-        prev.map((u) => (u.id === savedUser.id ? savedUser : u))
-      );
+      updateStaffUser(savedUser);
       showFeedback(`Updated account for ${savedUser.name}.`);
     } else {
-      setUsers((prev) => [savedUser, ...prev]);
+      addStaffUser(savedUser);
       showFeedback(`Added ${savedUser.name} (${savedUser.role}) to staff registry.`);
     }
   };
 
   const handleToggleStatus = (user: HealthStaffUser) => {
-    const nextStatus: StaffStatus =
-      user.status === "Active" ? "Inactive" : "Active";
-    setUsers((prev) =>
-      prev.map((u) => (u.id === user.id ? { ...u, status: nextStatus } : u))
-    );
-    showFeedback(
-      `Set status for ${user.name} to ${nextStatus}.`
-    );
+    const nextStatus = user.status === "Active" ? "Inactive" : "Active";
+    toggleStaffStatus(user.id);
+    showFeedback(`Set status for ${user.name} to ${nextStatus}.`);
   };
 
   const handleResetPassword = (user: HealthStaffUser) => {
+    const tempPass = resetStaffPassword(user.id);
     showFeedback(
-      `Password reset instructions sent to ${user.email}.`
+      `Temporary password generated for ${user.name}: ${tempPass} (sent to ${user.email}).`
     );
   };
 
   const handleDeleteUser = (user: HealthStaffUser) => {
-    if (confirm(`Are you sure you want to remove ${user.name} from the system?`)) {
-      setUsers((prev) => prev.filter((u) => u.id !== user.id));
-      showFeedback(`User ${user.name} has been removed.`);
+    if (confirm(`Are you sure you want to remove ${user.name} from the health center staff?`)) {
+      deleteStaffUser(user.id);
+      showFeedback(`Staff user ${user.name} has been removed.`);
     }
   };
 
   // Filter logic
-  const filteredUsers = users.filter((u) => {
+  const filteredUsers = staffUsers.filter((u) => {
     const matchesSearch =
       u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -146,10 +108,10 @@ export function UserManagementSection() {
   });
 
   // Role counts
-  const totalCount = users.length;
-  const adminCount = users.filter((u) => u.role === "Administrator").length;
-  const bhwCount = users.filter((u) => u.role === "BHW").length;
-  const activeCount = users.filter((u) => u.status === "Active").length;
+  const totalCount = staffUsers.length;
+  const adminCount = staffUsers.filter((u) => u.role === "Administrator").length;
+  const bhwCount = staffUsers.filter((u) => u.role === "BHW").length;
+  const activeCount = staffUsers.filter((u) => u.status === "Active").length;
 
   return (
     <Card className="border border-slate-200 shadow-xs bg-white">

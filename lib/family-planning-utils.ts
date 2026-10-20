@@ -23,6 +23,16 @@ export function saveStoredFPClients(clients: FPClient[]): void {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(FP_STORAGE_KEY, JSON.stringify(clients));
+    // Sync to Supabase in background
+    if (clients.length > 0) {
+      import("@/lib/supabase/services/family-planning-service").then(({ saveFamilyPlanningToSupabase }) => {
+        clients.forEach((client) => {
+          saveFamilyPlanningToSupabase(client).catch((e) =>
+            console.warn("Background Supabase FP sync error:", e)
+          );
+        });
+      });
+    }
   } catch (e) {
     console.error("Failed to save FP clients to storage", e);
   }

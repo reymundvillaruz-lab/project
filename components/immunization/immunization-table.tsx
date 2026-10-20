@@ -33,6 +33,8 @@ import {
   User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Pagination } from "@/components/ui/pagination";
+import { useSharedPatients } from "@/lib/patient-sync";
 
 interface ImmunizationTableProps {
   rows: PatientImmunizationAnalyticsRow[];
@@ -43,6 +45,8 @@ interface ImmunizationTableProps {
   onViewHistory: (recordId: string) => void;
 }
 
+const PAGE_SIZE = 10;
+
 export function ImmunizationTable({
   rows,
   patientRecords,
@@ -51,6 +55,8 @@ export function ImmunizationTable({
   onEditRecord,
   onViewHistory,
 }: ImmunizationTableProps) {
+  const { isPatientRegistered } = useSharedPatients();
+  const [currentPage, setCurrentPage] = React.useState(1);
   const [searchQuery, setSearchQuery] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("ALL");
   const [completionFilter, setCompletionFilter] = React.useState("ALL");
@@ -108,6 +114,19 @@ export function ImmunizationTable({
       return true;
     });
   }, [rows, searchQuery, statusFilter, completionFilter, addressFilter]);
+
+  // Reset page when filters change
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [filteredRows.length]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
+  const safePage = Math.min(Math.max(1, currentPage), totalPages);
+
+  const paginatedRows = React.useMemo(() => {
+    const startIndex = (safePage - 1) * PAGE_SIZE;
+    return filteredRows.slice(startIndex, startIndex + PAGE_SIZE);
+  }, [filteredRows, safePage]);
 
   const hasActiveFilters =
     Boolean(searchQuery) ||
@@ -257,18 +276,31 @@ export function ImmunizationTable({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredRows.map((row) => (
+                {paginatedRows.map((row) => {
+                  const inRegistry = isPatientRegistered(row.patientName || row.phicNumber);
+                  return (
                   <TableRow key={row.id} className="hover:bg-slate-50/80 transition-colors">
                     {/* Patient Name & Details */}
                     <TableCell>
                       <div>
-                        <span
-                          className="font-semibold text-slate-900 block hover:text-teal-700 cursor-pointer"
-                          onClick={() => onViewRecord(row.recordId)}
-                          title="Click to view NIP immunization card"
-                        >
-                          {row.patientName}
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span
+                            className="font-semibold text-slate-900 block hover:text-teal-700 cursor-pointer"
+                            onClick={() => onViewRecord(row.recordId)}
+                            title="Click to view NIP immunization card"
+                          >
+                            {row.patientName}
+                          </span>
+                          {inRegistry && (
+                            <span
+                              className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200"
+                              title="Verified: Patient record exists in Patient Registry"
+                            >
+                              <CheckCircle2 className="h-2.5 w-2.5 text-emerald-600" />
+                              In Registry
+                            </span>
+                          )}
+                        </div>
                         <div className="flex items-center gap-1.5 text-[11px] text-slate-500 mt-0.5">
                           {row.phicNumber && <span>PHIC: {row.phicNumber}</span>}
                           {row.phicNumber && row.address && <span>•</span>}
@@ -448,29 +480,21 @@ export function ImmunizationTable({
                       </div>
                     </TableCell>
                   </TableRow>
-                ))}
+                );
+              })}
               </TableBody>
             </Table>
           </div>
         )}
 
-        {/* Footer info */}
-        {rows.length > 0 && (
-          <div className="p-3.5 border-t border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500">
-            <span>
-              Showing <strong>{filteredRows.length}</strong> of <strong>{rows.length}</strong> registered patients (10 visible limit with scroll)
-            </span>
-            {hasActiveFilters && (
-              <button
-                type="button"
-                onClick={handleResetFilters}
-                className="text-teal-700 hover:underline font-medium"
-              >
-                Clear active filters
-              </button>
-            )}
-          </div>
-        )}
+        {/* 10-Item Immunization Pagination Bar */}
+        <Pagination
+          currentPage={safePage}
+          totalItems={filteredRows.length}
+          pageSize={PAGE_SIZE}
+          onPageChange={setCurrentPage}
+          itemName="immunization records"
+        />
       </CardContent>
     </Card>
   );

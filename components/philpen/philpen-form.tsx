@@ -33,6 +33,10 @@ import {
   getStoredPatients,
   saveStoredPatients,
 } from "@/lib/mock-data/patients";
+import {
+  savePatientToSupabase,
+  getPatientByIdFromSupabase,
+} from "@/lib/supabase/services/patients-service";
 
 export function PhilpenForm() {
   const router = useRouter();
@@ -45,35 +49,118 @@ export function PhilpenForm() {
   const [validationError, setValidationError] = React.useState<string | null>(null);
   const [showSuccessModal, setShowSuccessModal] = React.useState(false);
   const [savedPatientId, setSavedPatientId] = React.useState<string>("");
+  const [isSaving, setIsSaving] = React.useState(false);
 
   // Pre-fill form if editing an existing patient
   React.useEffect(() => {
-    if (editId) {
-      const existing = getPatientById(editId);
-      if (existing) {
-        setFormData((prev) => ({
-          ...prev,
-          patientInfo: {
-            ...prev.patientInfo,
-            surname: existing.lastName,
-            givenName: existing.firstName,
-            middleName: existing.middleName,
-            age: existing.age,
-            sex: existing.sex,
-            birthdate: existing.birthdate,
-            phicNo: existing.phicNo,
-            civilStatus: (existing.civilStatus as any) || "",
-            religion: existing.religion,
-            contactNo: existing.contact,
-            address: existing.address,
-            pwdIdNo: existing.pwdId === "N/A" ? "" : existing.pwdId,
-            employmentStatus: (existing.employmentStatus as any) || "",
-            isIp: (existing.isIp as any) || "Non-IP",
-            ethnicity: existing.ethnicity,
-          },
-        }));
+    if (!editId) return;
+
+    let isMounted = true;
+    async function loadPatient() {
+      let existing: MockPatient | undefined | null = null;
+      try {
+        existing = await getPatientByIdFromSupabase(editId as string);
+      } catch (e) {
+        console.warn("Could not fetch patient from Supabase for edit:", e);
+      }
+      if (!existing) {
+        existing = getPatientById(editId as string);
+      }
+
+      if (existing && isMounted) {
+        if (existing.philpenRecord) {
+          const rec = existing.philpenRecord;
+          setFormData({
+            patientInfo: {
+              ...INITIAL_PHILPEN_FORM_DATA.patientInfo,
+              ...(rec.patientInfo || {}),
+              surname: existing.lastName || rec.patientInfo?.surname || "",
+              givenName: existing.firstName || rec.patientInfo?.givenName || "",
+              middleName: existing.middleName || rec.patientInfo?.middleName || "",
+              age: existing.age ?? rec.patientInfo?.age ?? "",
+              sex: (existing.sex as any) || rec.patientInfo?.sex || "",
+              birthdate: existing.birthdate || rec.patientInfo?.birthdate || "",
+              phicNo: existing.phicNo || rec.patientInfo?.phicNo || "",
+              civilStatus: (existing.civilStatus as any) || rec.patientInfo?.civilStatus || "",
+              religion: existing.religion || rec.patientInfo?.religion || "",
+              contactNo: existing.contact || rec.patientInfo?.contactNo || "",
+              address: existing.address || rec.patientInfo?.address || "",
+              pwdIdNo: existing.pwdId === "N/A" ? "" : existing.pwdId || rec.patientInfo?.pwdIdNo || "",
+              employmentStatus: (existing.employmentStatus as any) || rec.patientInfo?.employmentStatus || "",
+              isIp: (existing.isIp as any) || rec.patientInfo?.isIp || "Non-IP",
+              ethnicity: existing.ethnicity || rec.patientInfo?.ethnicity || "",
+            },
+            redFlags: {
+              ...INITIAL_PHILPEN_FORM_DATA.redFlags,
+              ...(rec.redFlags || {}),
+            },
+            medicalHistory: {
+              ...INITIAL_PHILPEN_FORM_DATA.medicalHistory,
+              ...(rec.medicalHistory || {}),
+            },
+            familyHistory: {
+              ...INITIAL_PHILPEN_FORM_DATA.familyHistory,
+              ...(rec.familyHistory || {}),
+            },
+            ncdRiskFactors: {
+              ...INITIAL_PHILPEN_FORM_DATA.ncdRiskFactors,
+              ...(rec.ncdRiskFactors || {}),
+            },
+            riskScreening: {
+              ...INITIAL_PHILPEN_FORM_DATA.riskScreening,
+              ...(rec.riskScreening || {}),
+              symptoms: {
+                ...INITIAL_PHILPEN_FORM_DATA.riskScreening.symptoms,
+                ...(rec.riskScreening?.symptoms || {}),
+              },
+              lipidProfile: {
+                ...INITIAL_PHILPEN_FORM_DATA.riskScreening.lipidProfile,
+                ...(rec.riskScreening?.lipidProfile || {}),
+              },
+              urinalysis: {
+                ...INITIAL_PHILPEN_FORM_DATA.riskScreening.urinalysis,
+                ...(rec.riskScreening?.urinalysis || {}),
+              },
+              respiratory: {
+                ...INITIAL_PHILPEN_FORM_DATA.riskScreening.respiratory,
+                ...(rec.riskScreening?.respiratory || {}),
+              },
+            },
+            management: {
+              ...INITIAL_PHILPEN_FORM_DATA.management,
+              ...(rec.management || {}),
+            },
+          });
+        } else {
+          setFormData((prev) => ({
+            ...prev,
+            patientInfo: {
+              ...prev.patientInfo,
+              surname: existing.lastName,
+              givenName: existing.firstName,
+              middleName: existing.middleName,
+              age: existing.age,
+              sex: existing.sex,
+              birthdate: existing.birthdate,
+              phicNo: existing.phicNo,
+              civilStatus: (existing.civilStatus as any) || "",
+              religion: existing.religion,
+              contactNo: existing.contact,
+              address: existing.address,
+              pwdIdNo: existing.pwdId === "N/A" ? "" : existing.pwdId,
+              employmentStatus: (existing.employmentStatus as any) || "",
+              isIp: (existing.isIp as any) || "Non-IP",
+              ethnicity: existing.ethnicity,
+            },
+          }));
+        }
       }
     }
+
+    loadPatient();
+    return () => {
+      isMounted = false;
+    };
   }, [editId]);
 
   // Real-time Age Validation check
@@ -204,8 +291,8 @@ export function PhilpenForm() {
     }
   };
 
-  // Mock Save Assessment handler
-  const handleSaveAssessment = (e: React.FormEvent) => {
+  // Save Assessment handler
+  const handleSaveAssessment = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!validateCurrentStep()) {
@@ -219,96 +306,128 @@ export function PhilpenForm() {
       return;
     }
 
-    // Generate new mock Patient ID or reuse existing
-    const currentPatients = getStoredPatients();
-    let patientId = editId;
+    setIsSaving(true);
+    setValidationError(null);
 
-    if (!patientId) {
-      const nextNum = currentPatients.length + 1;
-      patientId = `BHC-${String(nextNum).padStart(6, "0")}`;
-    }
+    try {
+      const currentPatients = getStoredPatients();
+      let patientId = editId;
 
-    const fullName = `${formData.patientInfo.givenName} ${
-      formData.patientInfo.middleName ? formData.patientInfo.middleName + " " : ""
-    }${formData.patientInfo.surname}`;
+      if (!patientId) {
+        patientId = `PAT-${Math.floor(100000 + Math.random() * 900000)}`;
+      }
 
-    // Has any red flag?
-    const hasRedFlag = Object.values(formData.redFlags).some((v) => v === "Yes");
+      const fullName = `${formData.patientInfo.givenName} ${
+        formData.patientInfo.middleName ? formData.patientInfo.middleName + " " : ""
+      }${formData.patientInfo.surname}`;
 
-    const newPatientRecord: MockPatient = {
-      id: patientId,
-      firstName: formData.patientInfo.givenName,
-      lastName: formData.patientInfo.surname,
-      middleName: formData.patientInfo.middleName,
-      fullName: fullName,
-      sex: (formData.patientInfo.sex as "Male" | "Female") || "Female",
-      age: typeof formData.patientInfo.age === "number" ? formData.patientInfo.age : 20,
-      birthdate: formData.patientInfo.birthdate,
-      barangay: "Barangay Central",
-      address: formData.patientInfo.address,
-      contact: formData.patientInfo.contactNo,
-      lastVisit: formData.patientInfo.assessmentDate,
-      status: hasRedFlag ? "Follow-up Needed" : "Active",
-      phicNo: formData.patientInfo.phicNo,
-      civilStatus: formData.patientInfo.civilStatus || "Single",
-      religion: formData.patientInfo.religion || "None",
-      pwdId: formData.patientInfo.pwdIdNo || "N/A",
-      employmentStatus: formData.patientInfo.employmentStatus || "Employed",
-      isIp: formData.patientInfo.isIp || "Non-IP",
-      ethnicity: formData.patientInfo.ethnicity || "Tagalog",
-      emergencyContact: {
-        name: "Immediate Family",
-        relationship: "Family Member",
+      // Has any red flag?
+      const hasRedFlag = Object.values(formData.redFlags).some((v) => v === "Yes");
+
+      const newPatientRecord: MockPatient = {
+        id: patientId,
+        firstName: formData.patientInfo.givenName,
+        lastName: formData.patientInfo.surname,
+        middleName: formData.patientInfo.middleName,
+        fullName: fullName,
+        sex: (formData.patientInfo.sex as "Male" | "Female") || "Female",
+        age: typeof formData.patientInfo.age === "number" ? formData.patientInfo.age : 20,
+        birthdate: formData.patientInfo.birthdate,
+        barangay: "Barangay Central",
+        address: formData.patientInfo.address,
         contact: formData.patientInfo.contactNo,
-      },
-      healthInfo: {
-        bloodType: "O+",
-        allergies: formData.medicalHistory.allergies === "Yes" ? ["Reported Allergies"] : ["None known"],
-        chronicConditions: [
-          ...(formData.medicalHistory.hypertension === "Yes" ? ["Hypertension"] : []),
-          ...(formData.medicalHistory.diabetes === "Yes" ? ["Diabetes Mellitus"] : []),
-          ...(formData.medicalHistory.asthma === "Yes" ? ["Asthma"] : []),
-        ],
-        philpenStatus: hasRedFlag ? "High Risk" : "Completed",
-        lastBp: formData.ncdRiskFactors.bloodPressureSystolic
-          ? `${formData.ncdRiskFactors.bloodPressureSystolic}/${formData.ncdRiskFactors.bloodPressureDiastolic} mmHg`
-          : "120/80 mmHg",
-        lastBmi: formData.ncdRiskFactors.bmi ? `${formData.ncdRiskFactors.bmi} kg/m²` : "22.5 kg/m²",
-      },
-      consultations: [
-        {
-          id: `CON-${Date.now().toString().slice(-3)}`,
-          date: formData.patientInfo.assessmentDate,
-          purpose: "PHILPEN Risk Assessment (Revised 2022)",
-          physician: "Barangay Health Center Staff",
-          diagnosis: hasRedFlag ? "High Risk - Immediate Physician Referral" : "Completed Primary Care Screening",
+        lastVisit: formData.patientInfo.assessmentDate,
+        status: hasRedFlag ? "Follow-up Needed" : "Active",
+        phicNo: formData.patientInfo.phicNo,
+        civilStatus: formData.patientInfo.civilStatus || "Single",
+        religion: formData.patientInfo.religion || "None",
+        pwdId: formData.patientInfo.pwdIdNo || "N/A",
+        employmentStatus: formData.patientInfo.employmentStatus || "Employed",
+        isIp: formData.patientInfo.isIp || "Non-IP",
+        ethnicity: formData.patientInfo.ethnicity || "Tagalog",
+        emergencyContact: {
+          name: "Immediate Family",
+          relationship: "Family Member",
+          contact: formData.patientInfo.contactNo,
         },
-      ],
-      immunizations: [],
-      appointments: formData.management.followUpDate
-        ? [
-            {
-              id: `APT-${Date.now().toString().slice(-3)}`,
-              date: formData.management.followUpDate,
-              time: "08:30 AM",
-              purpose: "PHILPEN Care Plan Follow-up",
-              status: "Scheduled",
-            },
-          ]
-        : [],
-      prescriptions: [],
-      philpenRecord: formData,
-    };
+        healthInfo: {
+          bloodType: "O+",
+          allergies: formData.medicalHistory.allergies === "Yes" ? ["Reported Allergies"] : ["None known"],
+          chronicConditions: [
+            ...(formData.medicalHistory.hypertension === "Yes" ? ["Hypertension"] : []),
+            ...(formData.medicalHistory.diabetes === "Yes" ? ["Diabetes Mellitus"] : []),
+            ...(formData.medicalHistory.asthma === "Yes" ? ["Asthma"] : []),
+          ],
+          philpenStatus: hasRedFlag ? "High Risk" : "Completed",
+          lastBp: formData.ncdRiskFactors.bloodPressureSystolic
+            ? `${formData.ncdRiskFactors.bloodPressureSystolic}/${formData.ncdRiskFactors.bloodPressureDiastolic} mmHg`
+            : "120/80 mmHg",
+          lastBmi: formData.ncdRiskFactors.bmi ? `${formData.ncdRiskFactors.bmi} kg/m²` : "22.5 kg/m²",
+        },
+        consultations: [
+          {
+            id: `CON-${Date.now().toString().slice(-3)}`,
+            date: formData.patientInfo.assessmentDate,
+            purpose: "PHILPEN Risk Assessment (Revised 2022)",
+            physician: "Barangay Health Center Staff",
+            diagnosis: hasRedFlag ? "High Risk - Immediate Physician Referral" : "Completed Primary Care Screening",
+          },
+        ],
+        immunizations: [],
+        appointments: formData.management.followUpDate
+          ? [
+              {
+                id: `APT-${Date.now().toString().slice(-3)}`,
+                date: formData.management.followUpDate,
+                time: "08:30 AM",
+                purpose: "PHILPEN Care Plan Follow-up",
+                status: "Scheduled",
+              },
+            ]
+          : [],
+        prescriptions: [],
+        philpenRecord: formData,
+      };
 
-    if (editId) {
-      const updated = currentPatients.map((p) => (p.id === editId ? newPatientRecord : p));
-      saveStoredPatients(updated);
-    } else {
-      addStoredPatient(newPatientRecord);
+      if (editId) {
+        const updated = currentPatients.map((p) => (p.id === editId ? newPatientRecord : p));
+        saveStoredPatients(updated);
+      } else {
+        addStoredPatient(newPatientRecord);
+      }
+
+      // 1. Save patient directly to Supabase public.patients table
+      await savePatientToSupabase(newPatientRecord);
+
+      // 2. Save full PhilPEN record to Supabase philpen_assessments table
+      const { supabase } = await import("@/lib/supabase/client");
+      await supabase
+        .from("philpen_assessments")
+        .upsert(
+          {
+            id: `PEN-${Date.now()}`,
+            patient_id: patientId,
+            assessment_date: formData.patientInfo.assessmentDate || new Date().toISOString().split("T")[0],
+            health_facility_name: formData.patientInfo.healthFacilityName || "Barangay Health Center",
+            red_flags: formData.redFlags,
+            medical_history: formData.medicalHistory,
+            family_history: formData.familyHistory,
+            lifestyle_risk_factors: formData.ncdRiskFactors,
+            physical_measurements: formData.riskScreening,
+            risk_assessment_result: formData.management,
+            assessed_by: "Barangay Health Center Staff",
+          },
+          { onConflict: "id" }
+        );
+
+      setSavedPatientId(patientId);
+      setShowSuccessModal(true);
+    } catch (err: any) {
+      console.error("Save assessment error:", err);
+      setValidationError("Failed to save patient record to database. Please check the inputs and try again.");
+    } finally {
+      setIsSaving(false);
     }
-
-    setSavedPatientId(patientId);
-    setShowSuccessModal(true);
   };
 
   const handleSuccessClose = () => {
@@ -323,14 +442,14 @@ export function PhilpenForm() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
-              PHILPEN Risk Assessment
+              {editId ? "Edit Patient Record" : "Register Patient"}
             </h1>
             <span className="rounded bg-teal-50 px-2 py-0.5 text-xs font-semibold text-teal-800 border border-teal-200">
-              Annex C
+              PHILPEN Annex C
             </span>
           </div>
           <p className="text-xs text-slate-500 font-medium">
-            PHILPEN Risk Assessment Form (Revised 2022) &bull; Adults 20 years old and above
+            DOH PHILPEN Risk Assessment Form (Revised 2022) &bull; Adults 20 years old and above &bull; Synchronized with Supabase
           </p>
         </div>
 
@@ -473,11 +592,11 @@ export function PhilpenForm() {
                 type="button"
                 size="sm"
                 onClick={handleSaveAssessment}
-                disabled={Boolean(ageValidationError)}
+                disabled={Boolean(ageValidationError) || isSaving}
                 className="bg-teal-700 hover:bg-teal-800 text-xs shadow-xs"
               >
                 <Save className="h-3.5 w-3.5 mr-1.5" />
-                Save Assessment
+                {isSaving ? "Saving Assessment..." : "Save Assessment"}
               </Button>
             )}
           </div>

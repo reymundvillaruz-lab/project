@@ -69,8 +69,8 @@ export function AppointmentDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent maxWidth="max-w-lg">
-        <DialogHeader className="border-b border-slate-100 pb-3">
+      <DialogContent maxWidth="max-w-lg" className="max-h-[90vh] flex flex-col p-0 overflow-hidden">
+        <DialogHeader className="border-b border-slate-100 p-5 pb-3 shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-teal-50 border border-teal-200 text-teal-700">
@@ -92,7 +92,7 @@ export function AppointmentDetailDialog({
           </div>
         </DialogHeader>
 
-        <div className="px-5 py-4 space-y-4 text-xs">
+        <div className="flex-1 overflow-y-auto min-h-0 p-5 space-y-4 text-xs">
           {/* Date & Time Highlight Card */}
           <div className="rounded-lg border border-teal-200 bg-teal-50/60 p-3.5 flex items-center justify-between">
             <div className="space-y-1">
@@ -264,7 +264,7 @@ export function AppointmentDetailDialog({
           </div>
         </div>
 
-        <DialogFooter className="px-5 py-3 border-t border-slate-100 flex items-center justify-between sm:justify-between">
+        <DialogFooter className="px-5 py-3 border-t border-slate-100 bg-slate-50/80 shrink-0 flex items-center justify-between sm:justify-between">
           <Button
             type="button"
             variant="ghost"

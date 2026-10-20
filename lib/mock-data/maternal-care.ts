@@ -25,6 +25,16 @@ export function saveMaternalRecords(records: MaternalRecord[]): void {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(records));
+    // Sync to Supabase in background
+    if (records.length > 0) {
+      import("@/lib/supabase/services/maternal-service").then(({ saveMaternalRecordToSupabase }) => {
+        records.forEach((rec) => {
+          saveMaternalRecordToSupabase(rec).catch((e) =>
+            console.warn("Background Supabase maternal sync error:", e)
+          );
+        });
+      });
+    }
   } catch (e) {
     console.error("Failed to save maternal records to storage", e);
   }
