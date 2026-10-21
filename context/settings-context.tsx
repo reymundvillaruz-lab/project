@@ -3,7 +3,6 @@
 import * as React from "react";
 import {
   HealthStaffUser,
-  StaffRole,
   StaffStatus,
   HealthCenterInfo,
   SystemPreferences,
@@ -150,79 +149,81 @@ const SettingsContext = React.createContext<SettingsContextType | undefined>(
 );
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
-  const [profile, setProfile] = React.useState<UserProfileSettings>(DEFAULT_PROFILE);
-  const [healthCenter, setHealthCenter] = React.useState<HealthCenterInfo>(DEFAULT_HEALTH_CENTER);
-  const [systemPreferences, setSystemPreferences] = React.useState<SystemPreferences>(DEFAULT_SYSTEM_PREFERENCES);
-  const [notificationSettings, setNotificationSettings] = React.useState<NotificationSettings>(DEFAULT_NOTIFICATION_SETTINGS);
-  const [securitySettings, setSecuritySettings] = React.useState<SecurityPreferencesSettings>(DEFAULT_SECURITY_SETTINGS);
-  const [staffUsers, setStaffUsers] = React.useState<HealthStaffUser[]>(DEFAULT_STAFF_USERS);
-
-  const isHydratedRef = React.useRef(false);
-
-  // Hydrate on client mount
-  React.useEffect(() => {
+  const [profile, setProfile] = React.useState<UserProfileSettings>(() => {
+    if (typeof window === "undefined") return DEFAULT_PROFILE;
     try {
-      const storedProfile = localStorage.getItem(STORAGE_PROFILE_KEY);
-      if (storedProfile) {
-        const parsed = JSON.parse(storedProfile);
-        // Clear out legacy mock profile
-        if (parsed.name === "Maria Elena Santos, RN") {
-          setProfile(DEFAULT_PROFILE);
-          localStorage.setItem(STORAGE_PROFILE_KEY, JSON.stringify(DEFAULT_PROFILE));
-        } else {
-          setProfile(parsed);
-        }
+      const stored = localStorage.getItem(STORAGE_PROFILE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed?.name !== "Maria Elena Santos, RN") return parsed;
       }
+    } catch {}
+    return DEFAULT_PROFILE;
+  });
 
-      const storedHc = localStorage.getItem(STORAGE_HC_KEY);
-      if (storedHc) {
-        const parsed = JSON.parse(storedHc);
-        // Clear out legacy mock facility
-        if (parsed.name === "Barangay San Jose Health Station") {
-          setHealthCenter(DEFAULT_HEALTH_CENTER);
-          localStorage.setItem(STORAGE_HC_KEY, JSON.stringify(DEFAULT_HEALTH_CENTER));
-        } else {
-          setHealthCenter(parsed);
-        }
+  const [healthCenter, setHealthCenter] = React.useState<HealthCenterInfo>(() => {
+    if (typeof window === "undefined") return DEFAULT_HEALTH_CENTER;
+    try {
+      const stored = localStorage.getItem(STORAGE_HC_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed?.name !== "Barangay San Jose Health Station") return parsed;
       }
+    } catch {}
+    return DEFAULT_HEALTH_CENTER;
+  });
 
-      const storedSys = localStorage.getItem(STORAGE_SYSTEM_KEY);
-      if (storedSys) setSystemPreferences(JSON.parse(storedSys));
+  const [systemPreferences, setSystemPreferences] = React.useState<SystemPreferences>(() => {
+    if (typeof window === "undefined") return DEFAULT_SYSTEM_PREFERENCES;
+    try {
+      const stored = localStorage.getItem(STORAGE_SYSTEM_KEY);
+      if (stored) return JSON.parse(stored);
+    } catch {}
+    return DEFAULT_SYSTEM_PREFERENCES;
+  });
 
-      const storedNotifs = localStorage.getItem(STORAGE_NOTIFS_KEY);
-      if (storedNotifs) setNotificationSettings(JSON.parse(storedNotifs));
+  const [notificationSettings, setNotificationSettings] = React.useState<NotificationSettings>(() => {
+    if (typeof window === "undefined") return DEFAULT_NOTIFICATION_SETTINGS;
+    try {
+      const stored = localStorage.getItem(STORAGE_NOTIFS_KEY);
+      if (stored) return JSON.parse(stored);
+    } catch {}
+    return DEFAULT_NOTIFICATION_SETTINGS;
+  });
 
-      const storedSec = localStorage.getItem(STORAGE_SECURITY_KEY);
-      if (storedSec) {
-        const parsed = JSON.parse(storedSec);
+  const [securitySettings, setSecuritySettings] = React.useState<SecurityPreferencesSettings>(() => {
+    if (typeof window === "undefined") return DEFAULT_SECURITY_SETTINGS;
+    try {
+      const stored = localStorage.getItem(STORAGE_SECURITY_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
         if (parsed && Array.isArray(parsed.activeSessions)) {
-          // Remove legacy mock Android session
           parsed.activeSessions = parsed.activeSessions.filter(
             (s: ActiveSession) => s.id !== "sess-2"
           );
         }
-        setSecuritySettings(parsed);
+        return parsed;
       }
+    } catch {}
+    return DEFAULT_SECURITY_SETTINGS;
+  });
 
-      const storedStaff = localStorage.getItem(STORAGE_STAFF_KEY);
-      if (storedStaff) {
-        const parsed = JSON.parse(storedStaff);
+  const [staffUsers, setStaffUsers] = React.useState<HealthStaffUser[]>(() => {
+    if (typeof window === "undefined") return DEFAULT_STAFF_USERS;
+    try {
+      const stored = localStorage.getItem(STORAGE_STAFF_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
         if (Array.isArray(parsed)) {
-          // Purge any mock staff users
-          const cleanedStaff = parsed.filter(
-            (u: HealthStaffUser) => !u.id.startsWith("STAFF-00")
-          );
-          setStaffUsers(cleanedStaff);
-          localStorage.setItem(STORAGE_STAFF_KEY, JSON.stringify(cleanedStaff));
+          return parsed.filter((u: HealthStaffUser) => !u.id.startsWith("STAFF-00"));
         }
       }
-    } catch (e) {
-      console.warn("Settings hydration error:", e);
-    }
-    isHydratedRef.current = true;
-  }, []);
+    } catch {}
+    return DEFAULT_STAFF_USERS;
+  });
 
   // Sync theme changes to HTML document
+
   React.useEffect(() => {
     if (typeof window === "undefined") return;
     const root = document.documentElement;
@@ -422,7 +423,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     [persistStaffUsers]
   );
 
-  const resetStaffPassword = React.useCallback((userId: string): string => {
+  const resetStaffPassword = React.useCallback((_userId: string): string => {
     const tempPassword = `BHC-${Math.floor(100000 + Math.random() * 900000)}`;
     // Log temporary password for demonstration
     return tempPassword;

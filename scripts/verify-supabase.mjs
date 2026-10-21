@@ -20,9 +20,19 @@ const SUPABASE_KEY =
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
   "";
 
+if (!SUPABASE_KEY) {
+  console.log("=================================================");
+  console.log("⚠️  Supabase Anon/Service Key Missing in .env.local");
+  console.log("Please define NEXT_PUBLIC_SUPABASE_ANON_KEY in your .env.local file.");
+  console.log("Get your key from: https://supabase.com/dashboard/project/uxuycuvdiudhryjbcnja/settings/api");
+  console.log("=================================================");
+  process.exit(0);
+}
+
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: { persistSession: false },
 });
+
 
 const TABLES = [
   "patients",

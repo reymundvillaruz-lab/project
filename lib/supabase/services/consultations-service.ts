@@ -1,7 +1,9 @@
-import { supabase } from "@/lib/supabase/client";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
 import { MockConsultation } from "@/lib/mock-data/consultations";
+import { sanitizeDate } from "@/lib/utils";
 
 export async function fetchConsultationsFromSupabase(): Promise<MockConsultation[] | null> {
+  if (!isSupabaseConfigured) return null;
   try {
     const { data, error } = await supabase
       .from("consultations")
@@ -52,8 +54,15 @@ export async function fetchConsultationsFromSupabase(): Promise<MockConsultation
 }
 
 export async function saveConsultationToSupabase(consultation: Partial<MockConsultation>): Promise<boolean> {
+  if (!isSupabaseConfigured) return false;
   try {
     const id = consultation.id || `CNS-${Date.now()}`;
+    const cleanConsultationDate = sanitizeDate(
+      consultation.date,
+      new Date().toISOString().split("T")[0]
+    ) as string;
+    const cleanFollowUpDate = sanitizeDate(consultation.followUp?.date);
+
     const payload = {
       id,
       patient_id: consultation.patientId || null,
@@ -61,7 +70,7 @@ export async function saveConsultationToSupabase(consultation: Partial<MockConsu
       patient_age: consultation.patientAge || 0,
       patient_sex: consultation.patientSex || "Male",
       patient_contact: consultation.patientContact || null,
-      consultation_date: consultation.date || new Date().toISOString().split("T")[0],
+      consultation_date: cleanConsultationDate,
       visit_type: consultation.visitType || "General Consultation",
       provider: consultation.provider || "Barangay Health Worker",
       reason_for_visit: consultation.reasonForVisit || "Routine Examination",
@@ -69,7 +78,7 @@ export async function saveConsultationToSupabase(consultation: Partial<MockConsu
       vital_signs: consultation.vitalSigns || {},
       notes: consultation.notes || null,
       follow_up_required: consultation.followUp?.required || "No",
-      follow_up_date: consultation.followUp?.date || null,
+      follow_up_date: cleanFollowUpDate,
       follow_up_instructions: consultation.followUp?.instructions || null,
       status: consultation.status || "Completed",
     };
@@ -77,6 +86,12 @@ export async function saveConsultationToSupabase(consultation: Partial<MockConsu
     const { error } = await supabase.from("consultations").upsert(payload, { onConflict: "id" });
 
     if (error) {
+      if (error.code === "23503") {
+        const { error: retryError } = await supabase
+          .from("consultations")
+          .upsert({ ...payload, patient_id: null }, { onConflict: "id" });
+        if (!retryError) return true;
+      }
       console.error("Supabase saveConsultation error:", error.message);
       return false;
     }
@@ -87,3 +102,4 @@ export async function saveConsultationToSupabase(consultation: Partial<MockConsu
     return false;
   }
 }
+

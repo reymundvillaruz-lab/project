@@ -1,4 +1,5 @@
-import { supabase } from "@/lib/supabase/client";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
+import { sanitizeDate } from "@/lib/utils";
 import { FPServiceRecord, FPFollowUp } from "@/types/family-planning";
 
 export interface FamilyPlanningClientRow {
@@ -21,6 +22,7 @@ export interface FamilyPlanningClientRow {
 }
 
 export async function fetchFamilyPlanningFromSupabase(): Promise<FamilyPlanningClientRow[] | null> {
+  if (!isSupabaseConfigured) return null;
   try {
     const { data, error } = await supabase
       .from("family_planning_records")
@@ -59,19 +61,26 @@ export async function fetchFamilyPlanningFromSupabase(): Promise<FamilyPlanningC
 }
 
 export async function saveFamilyPlanningToSupabase(record: Partial<FamilyPlanningClientRow>): Promise<boolean> {
+  if (!isSupabaseConfigured) return false;
   try {
     const id = record.id || `FP-${Date.now()}`;
+    const cleanDob = sanitizeDate(record.dateOfBirth);
+    const cleanRegDate = sanitizeDate(
+      record.registrationDate,
+      new Date().toISOString().split("T")[0]
+    ) as string;
+
     const payload = {
       id,
       client_id: record.clientId || null,
       client_name: record.clientName || "FP Client",
-      date_of_birth: record.dateOfBirth || null,
+      date_of_birth: cleanDob,
       age: record.age || null,
       address: record.address || null,
       contact_number: record.contactNumber || null,
       client_type: record.clientType || "New Acceptor",
       method: record.method || "Oral Contraceptive Pills (COC)",
-      registration_date: record.registrationDate || new Date().toISOString().split("T")[0],
+      registration_date: cleanRegDate,
       provider: record.provider || "Family Planning Midwife",
       status: record.status || "Active User",
       supplies_given: record.suppliesGiven || null,
@@ -92,7 +101,9 @@ export async function saveFamilyPlanningToSupabase(record: Partial<FamilyPlannin
   }
 }
 
+
 export async function deleteFPClientFromSupabase(id: string): Promise<boolean> {
+  if (!isSupabaseConfigured) return false;
   try {
     const { error } = await supabase.from("family_planning_records").delete().eq("id", id);
     if (error) {
@@ -105,3 +116,4 @@ export async function deleteFPClientFromSupabase(id: string): Promise<boolean> {
     return false;
   }
 }
+

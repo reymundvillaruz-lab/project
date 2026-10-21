@@ -1,7 +1,6 @@
 import {
   Appointment,
   AppointmentDashboardStats,
-  AppointmentStatus,
 } from "@/types/appointment";
 
 export const APPOINTMENTS_STORAGE_KEY = "bhcms_appointments_v1";

@@ -399,26 +399,33 @@ export function PhilpenForm() {
       // 1. Save patient directly to Supabase public.patients table
       await savePatientToSupabase(newPatientRecord);
 
-      // 2. Save full PhilPEN record to Supabase philpen_assessments table
-      const { supabase } = await import("@/lib/supabase/client");
-      await supabase
-        .from("philpen_assessments")
-        .upsert(
-          {
-            id: `PEN-${Date.now()}`,
-            patient_id: patientId,
-            assessment_date: formData.patientInfo.assessmentDate || new Date().toISOString().split("T")[0],
-            health_facility_name: formData.patientInfo.healthFacilityName || "Barangay Health Center",
-            red_flags: formData.redFlags,
-            medical_history: formData.medicalHistory,
-            family_history: formData.familyHistory,
-            lifestyle_risk_factors: formData.ncdRiskFactors,
-            physical_measurements: formData.riskScreening,
-            risk_assessment_result: formData.management,
-            assessed_by: "Barangay Health Center Staff",
-          },
-          { onConflict: "id" }
-        );
+      // 2. Save full PhilPEN record to Supabase philpen_assessments table (if configured)
+      const { supabase, isSupabaseConfigured } = await import("@/lib/supabase/client");
+      if (isSupabaseConfigured) {
+        try {
+          await supabase
+            .from("philpen_assessments")
+            .upsert(
+              {
+                id: `PEN-${Date.now()}`,
+                patient_id: patientId,
+                assessment_date: formData.patientInfo.assessmentDate || new Date().toISOString().split("T")[0],
+                health_facility_name: formData.patientInfo.healthFacilityName || "Barangay Health Center",
+                red_flags: formData.redFlags,
+                medical_history: formData.medicalHistory,
+                family_history: formData.familyHistory,
+                lifestyle_risk_factors: formData.ncdRiskFactors,
+                physical_measurements: formData.riskScreening,
+                risk_assessment_result: formData.management,
+                assessed_by: "Barangay Health Center Staff",
+              },
+              { onConflict: "id" }
+            );
+        } catch (penErr) {
+          console.warn("Background Supabase philpen assessment sync error:", penErr);
+        }
+      }
+
 
       setSavedPatientId(patientId);
       setShowSuccessModal(true);

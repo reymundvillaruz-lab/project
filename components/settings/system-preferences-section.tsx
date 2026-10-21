@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Sliders, CheckCircle2, Globe, Clock, Database, RotateCcw } from "lucide-react";
+import { Sliders, CheckCircle2, RotateCcw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
@@ -18,17 +18,14 @@ export function SystemPreferencesSection() {
   const [offlineCache, setOfflineCache] = React.useState(systemPreferences.offlineMode);
   const [feedback, setFeedback] = React.useState<string | null>(null);
 
-  React.useEffect(() => {
-    setDefaultRoute(systemPreferences.defaultRoute);
-    setLanguage(systemPreferences.language);
-    setDateFormat(systemPreferences.dateFormat);
-    setTimeFormat(systemPreferences.timeFormat);
-    setAutoSaveDrafts(systemPreferences.autoSaveDrafts);
-    setOfflineCache(systemPreferences.offlineMode);
-  }, [systemPreferences]);
-
   const handleResetDefaults = () => {
     updateSystemPreferences(DEFAULT_SYSTEM_PREFERENCES);
+    setDefaultRoute(DEFAULT_SYSTEM_PREFERENCES.defaultRoute);
+    setLanguage(DEFAULT_SYSTEM_PREFERENCES.language);
+    setDateFormat(DEFAULT_SYSTEM_PREFERENCES.dateFormat);
+    setTimeFormat(DEFAULT_SYSTEM_PREFERENCES.timeFormat);
+    setAutoSaveDrafts(DEFAULT_SYSTEM_PREFERENCES.autoSaveDrafts);
+    setOfflineCache(DEFAULT_SYSTEM_PREFERENCES.offlineMode);
     setFeedback("Restored default system and workstation preferences.");
     setTimeout(() => setFeedback(null), 3500);
   };

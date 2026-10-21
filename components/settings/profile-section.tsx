@@ -1,5 +1,5 @@
 import * as React from "react";
-import { User, Mail, Phone, Building, Shield, CheckCircle2, Upload } from "lucide-react";
+import { User, Mail, CheckCircle2, Upload } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,16 +20,6 @@ export function ProfileSection() {
   const [avatarUrl, setAvatarUrl] = React.useState<string | null>(profile.avatarUrl);
   const [feedback, setFeedback] = React.useState<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
-
-  React.useEffect(() => {
-    setName(profile.name);
-    setRoleTitle(profile.roleTitle);
-    setEmail(profile.email);
-    setPhone(profile.phone);
-    setStation(profile.station);
-    setLicenseNo(profile.licenseNo);
-    setAvatarUrl(profile.avatarUrl);
-  }, [profile]);
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

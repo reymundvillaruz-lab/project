@@ -128,10 +128,13 @@ export function AppointmentView() {
       return updated;
     });
 
-    // Delete from Supabase in background
-    import("@/lib/supabase/client").then(({ supabase }) => {
-      supabase.from("appointments").delete().eq("id", appointmentId).then();
+    // Delete from Supabase in background (if configured)
+    import("@/lib/supabase/services/appointments-service").then(({ deleteAppointmentFromSupabase }) => {
+      deleteAppointmentFromSupabase(appointmentId).catch((err: unknown) => {
+        console.warn("Supabase appointment delete error:", err);
+      });
     });
+
 
     setIsDetailDialogOpen(false);
     setSelectedAppointmentId(null);

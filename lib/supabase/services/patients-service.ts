@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase/client";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
 import { MockPatient } from "@/lib/mock-data/patients";
 
 const VALID_GENDERS = ["Male", "Female", "Other"] as const;
@@ -266,6 +266,9 @@ export function mapPatientToRow(patient: Partial<MockPatient>, isNew: boolean = 
 // CRUD METHOD 1: READ (Fetch All Patients)
 // ==============================================================================
 export async function fetchPatientsFromSupabase(): Promise<MockPatient[] | null> {
+  if (!isSupabaseConfigured) {
+    return null;
+  }
   try {
     const { data, error } = await supabase
       .from("patients")
@@ -292,6 +295,9 @@ export async function fetchPatientsFromSupabase(): Promise<MockPatient[] | null>
 // CRUD METHOD 2: READ (Fetch Single Patient By ID with related clinical records)
 // ==============================================================================
 export async function getPatientByIdFromSupabase(id: string): Promise<MockPatient | null> {
+  if (!isSupabaseConfigured) {
+    return null;
+  }
   try {
     // 1. Fetch patient basic info
     const { data: patientRow, error: patientError } = await supabase
@@ -435,6 +441,9 @@ export async function createPatientInSupabase(patient: Partial<MockPatient>): Pr
   data?: MockPatient;
   error?: string;
 }> {
+  if (!isSupabaseConfigured) {
+    return { success: false, error: "Supabase is not configured." };
+  }
   try {
     const id = patient.id || `PAT-${Date.now().toString().slice(-6)}`;
     const fullPatient: Partial<MockPatient> = {
@@ -476,6 +485,9 @@ export async function updatePatientInSupabase(
   data?: MockPatient;
   error?: string;
 }> {
+  if (!isSupabaseConfigured) {
+    return { success: false, error: "Supabase is not configured." };
+  }
   try {
     const row = mapPatientToRow(updates, false);
     // Never overwrite primary key
@@ -514,6 +526,9 @@ export async function deletePatientFromSupabase(id: string): Promise<{
   success: boolean;
   error?: string;
 }> {
+  if (!isSupabaseConfigured) {
+    return { success: false, error: "Supabase is not configured." };
+  }
   try {
     const { error } = await supabase
       .from("patients")
@@ -536,6 +551,9 @@ export async function deletePatientFromSupabase(id: string): Promise<{
 // UPSERT / SAVE (Smart check: UPDATE if exists, INSERT if new)
 // ==============================================================================
 export async function savePatientToSupabase(patient: Partial<MockPatient>): Promise<boolean> {
+  if (!isSupabaseConfigured) {
+    return false;
+  }
   try {
     const id = patient.id || `PAT-${Date.now().toString().slice(-6)}`;
 

@@ -1,7 +1,9 @@
-import { supabase } from "@/lib/supabase/client";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
 import { NipPatientRecord } from "@/components/immunization/types";
+import { sanitizeDate } from "@/lib/utils";
 
 export async function fetchImmunizationsFromSupabase(): Promise<NipPatientRecord[] | null> {
+  if (!isSupabaseConfigured) return null;
   try {
     const { data, error } = await supabase
       .from("immunizations")
@@ -47,14 +49,25 @@ export async function fetchImmunizationsFromSupabase(): Promise<NipPatientRecord
 }
 
 export async function saveImmunizationToSupabase(record: Partial<NipPatientRecord>): Promise<boolean> {
+  if (!isSupabaseConfigured) return false;
   try {
     const id = record.id || `NIP-${Date.now()}`;
+    const cleanBirthdate = sanitizeDate(
+      record.birthdate,
+      new Date().toISOString().split("T")[0]
+    ) as string;
+    const cleanDateRegistered = sanitizeDate(
+      record.dateRegistered,
+      new Date().toISOString().split("T")[0]
+    ) as string;
+    const cleanMeasurementDate = sanitizeDate(record.measurementDate);
+
     const payload = {
       id,
       patient_name: record.patientName || "Child Patient",
       sex: record.sex || "",
       phic_number: record.phicNumber || null,
-      birthdate: record.birthdate || new Date().toISOString().split("T")[0],
+      birthdate: cleanBirthdate,
       age: record.age || null,
       nhts: record.nhts || null,
       birthplace: record.birthplace || null,
@@ -62,8 +75,8 @@ export async function saveImmunizationToSupabase(record: Partial<NipPatientRecor
       father_name: record.fatherName || null,
       family_serial_no: record.familySerialNo || null,
       address: record.address || "Barangay Health Center",
-      date_registered: record.dateRegistered || new Date().toISOString().split("T")[0],
-      measurement_date: record.measurementDate || null,
+      date_registered: cleanDateRegistered,
+      measurement_date: cleanMeasurementDate,
       height_cm: record.heightCm || null,
       weight_kg: record.weightKg || null,
       temperature_c: record.temperatureC || null,
@@ -75,6 +88,12 @@ export async function saveImmunizationToSupabase(record: Partial<NipPatientRecor
 
     const { error } = await supabase.from("immunizations").upsert(payload, { onConflict: "id" });
     if (error) {
+      if (error.code === "23503") {
+        const { error: retryError } = await supabase
+          .from("immunizations")
+          .upsert({ ...payload, patient_id: null }, { onConflict: "id" });
+        if (!retryError) return true;
+      }
       console.error("Supabase saveImmunization error:", error.message);
       return false;
     }
@@ -84,3 +103,5 @@ export async function saveImmunizationToSupabase(record: Partial<NipPatientRecor
     return false;
   }
 }
+
+

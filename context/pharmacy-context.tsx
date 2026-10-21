@@ -60,7 +60,7 @@ export function saveStoredPharmacyMedicines(medicines: Medicine[]): void {
   }
 }
 
-import { DEFAULT_INITIAL_PRESCRIPTIONS, getPrescriptionItems } from "@/lib/pharmacy-utils";
+import { getPrescriptionItems } from "@/lib/pharmacy-utils";
 
 export function getStoredPharmacyPrescriptions(): Prescription[] {
   if (typeof window === "undefined") return [];
@@ -86,6 +86,15 @@ export function saveStoredPharmacyPrescriptions(prescriptions: Prescription[]): 
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(PHARMACY_RX_STORAGE_KEY, JSON.stringify(prescriptions));
+
+    // Sync to Supabase in background
+    import("@/lib/supabase/services/pharmacy-service").then(({ savePrescriptionToSupabase }) => {
+      prescriptions.forEach((rx) => {
+        savePrescriptionToSupabase(rx).catch((e) =>
+          console.warn("Background Supabase prescription sync error:", e)
+        );
+      });
+    });
   } catch (e) {
     console.error("Failed to save pharmacy prescriptions to storage", e);
   }
@@ -96,18 +105,15 @@ const PharmacyContext = React.createContext<PharmacyContextType | undefined>(
 );
 
 export function PharmacyProvider({ children }: { children: React.ReactNode }) {
-  const [medicines, setMedicines] = React.useState<Medicine[]>([]);
-  const [prescriptions, setPrescriptions] = React.useState<Prescription[]>([]);
-  const isHydratedRef = React.useRef(false);
+  const [medicines, setMedicines] = React.useState<Medicine[]>(() => getStoredPharmacyMedicines());
+  const [prescriptions, setPrescriptions] = React.useState<Prescription[]>(() => getStoredPharmacyPrescriptions());
+  const isHydratedRef = React.useRef(true);
 
-  // Hydrate from storage on mount and sync from Supabase
+  // Fetch live updates from Supabase on mount
   React.useEffect(() => {
-    setMedicines(getStoredPharmacyMedicines());
-    setPrescriptions(getStoredPharmacyPrescriptions());
-    isHydratedRef.current = true;
-
     // Fetch live data from Supabase
     import("@/lib/supabase/services/pharmacy-service").then(
+
       async ({ fetchMedicinesFromSupabase, fetchPrescriptionsFromSupabase }) => {
         try {
           const sbMeds = await fetchMedicinesFromSupabase();

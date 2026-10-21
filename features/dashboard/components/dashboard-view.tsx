@@ -46,34 +46,35 @@ interface DashboardViewProps {
 }
 
 export function DashboardView({ initialData }: DashboardViewProps) {
-  const [patients, setPatients] = React.useState<MockPatient[]>([]);
-  const [consultations, setConsultations] = React.useState<MockConsultation[]>([]);
-  const [appointments, setAppointments] = React.useState<Appointment[]>([]);
-  const [immunizations, setImmunizations] = React.useState<NipPatientRecord[]>([]);
-  const [maternalRecords, setMaternalRecords] = React.useState<MaternalRecord[]>([]);
-  const [medicines, setMedicines] = React.useState<Medicine[]>([]);
-  const [fpClients, setFpClients] = React.useState<FPClient[]>([]);
+  const [patients, setPatients] = React.useState<MockPatient[]>(() => getStoredPatients());
+  const [consultations, setConsultations] = React.useState<MockConsultation[]>(() => getStoredConsultations());
+  const [appointments, setAppointments] = React.useState<Appointment[]>(() => getStoredAppointments());
+  const [immunizations, setImmunizations] = React.useState<NipPatientRecord[]>(() => getStoredImmunizationRecords());
+  const [maternalRecords, setMaternalRecords] = React.useState<MaternalRecord[]>(() => getInitialMaternalRecords());
+  const [medicines, setMedicines] = React.useState<Medicine[]>(() => getStoredPharmacyMedicines());
+  const [fpClients, setFpClients] = React.useState<FPClient[]>(() => getStoredFPClients());
 
-  // Hydrate from stored data on client mount and sync with Supabase
+  // Sync all clinic subsystems with Supabase on client mount
   React.useEffect(() => {
-    setPatients(getStoredPatients());
-    setConsultations(getStoredConsultations());
-    setAppointments(getStoredAppointments());
-    setImmunizations(getStoredImmunizationRecords());
-    setMaternalRecords(getInitialMaternalRecords());
-    setMedicines(getStoredPharmacyMedicines());
-    setFpClients(getStoredFPClients());
-
-    // Fetch live patients from Supabase
-    import("@/lib/supabase/services/patients-service").then(({ fetchPatientsFromSupabase }) => {
-      fetchPatientsFromSupabase()
-        .then((sbPatients) => {
-          if (sbPatients !== null) {
-            setPatients(sbPatients);
-          }
-        })
-        .catch(() => {});
-    });
+    Promise.all([
+      import("@/lib/supabase/services/patients-service").then((m) => m.fetchPatientsFromSupabase()).catch(() => null),
+      import("@/lib/supabase/services/consultations-service").then((m) => m.fetchConsultationsFromSupabase()).catch(() => null),
+      import("@/lib/supabase/services/appointments-service").then((m) => m.fetchAppointmentsFromSupabase()).catch(() => null),
+      import("@/lib/supabase/services/immunization-service").then((m) => m.fetchImmunizationsFromSupabase()).catch(() => null),
+      import("@/lib/supabase/services/maternal-service").then((m) => m.fetchMaternalRecordsFromSupabase()).catch(() => null),
+      import("@/lib/supabase/services/pharmacy-service").then((m) => m.fetchMedicinesFromSupabase()).catch(() => null),
+      import("@/lib/supabase/services/family-planning-service").then((m) => m.fetchFamilyPlanningFromSupabase()).catch(() => null),
+    ])
+      .then(([sbPatients, sbConsultations, sbAppointments, sbImmunizations, sbMaternal, sbMedicines, sbFp]) => {
+        if (sbPatients !== null) setPatients(sbPatients);
+        if (sbConsultations !== null) setConsultations(sbConsultations);
+        if (sbAppointments !== null) setAppointments(sbAppointments);
+        if (sbImmunizations !== null) setImmunizations(sbImmunizations);
+        if (sbMaternal !== null) setMaternalRecords(sbMaternal);
+        if (sbMedicines !== null) setMedicines(sbMedicines);
+        if (sbFp !== null) setFpClients(sbFp as any);
+      })
+      .catch(() => {});
   }, []);
 
   // Formatted date string for Philippine context
@@ -88,9 +89,10 @@ export function DashboardView({ initialData }: DashboardViewProps) {
   }, []);
 
   // 1. Core KPIs
-  const totalPatients = patients.length;
-  const totalConsultations = consultations.length;
-  const totalAppointments = appointments.length;
+  const totalPatients = patients.length || initialData?.metrics?.totalRegisteredPatients || 0;
+  const totalConsultations = consultations.length || initialData?.metrics?.todayConsultations || 0;
+  const totalAppointments = appointments.length || initialData?.metrics?.pendingAppointments || 0;
+
 
   const totalVaccinesGiven = React.useMemo(() => {
     let count = 0;

@@ -40,14 +40,9 @@ export function useSharedPatients() {
   React.useEffect(() => {
     let isMounted = true;
 
-    // Immediately ensure latest cache is loaded
-    const cached = getStoredPatients();
-    if (cached.length > 0 && isMounted) {
-      setPatients(cached);
-    }
-
     // Background fetch from Supabase to ensure fresh cloud data
     async function loadCloudPatients() {
+
       setIsLoading(true);
       try {
         const sbPatients = await fetchPatientsFromSupabase();

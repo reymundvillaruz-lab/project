@@ -1,12 +1,24 @@
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { auth } from "@clerk/nextjs/server";
 
-const supabaseUrl =
+export const supabaseUrl =
   process.env.NEXT_PUBLIC_SUPABASE_URL || "https://uxuycuvdiudhryjbcnja.supabase.co";
-const supabaseAnonKey =
+
+const rawSupabaseAnonKey =
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
   "";
+
+export const isSupabaseConfigured = Boolean(
+  rawSupabaseAnonKey &&
+    rawSupabaseAnonKey.trim() !== "" &&
+    !rawSupabaseAnonKey.startsWith("placeholder")
+);
+
+const supabaseAnonKey = isSupabaseConfigured
+  ? rawSupabaseAnonKey
+  : "placeholder-anon-key-needed-in-env-local";
+
 
 /**
  * Creates a server-side Supabase client for Server Components, Route Handlers,

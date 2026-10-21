@@ -6,15 +6,11 @@ import {
   UserPlus,
   Shield,
   Search,
-  Filter,
-  MoreVertical,
   CheckCircle2,
-  AlertCircle,
   KeyRound,
   Trash2,
   Edit2,
   RefreshCw,
-  UserCheck,
   ShieldAlert,
   HeartHandshake,
 } from "lucide-react";
@@ -23,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { HealthStaffUser, StaffRole, StaffStatus } from "@/types/settings";
+import { HealthStaffUser } from "@/types/settings";
 import { AddUserDialog } from "./add-user-dialog";
 import { useSettings } from "@/context/settings-context";
 

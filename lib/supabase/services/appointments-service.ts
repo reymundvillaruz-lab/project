@@ -1,7 +1,9 @@
-import { supabase } from "@/lib/supabase/client";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
 import { Appointment } from "@/types/appointment";
+import { sanitizeDate } from "@/lib/utils";
 
 export async function fetchAppointmentsFromSupabase(): Promise<Appointment[] | null> {
+  if (!isSupabaseConfigured) return null;
   try {
     const { data, error } = await supabase
       .from("appointments")
@@ -35,14 +37,20 @@ export async function fetchAppointmentsFromSupabase(): Promise<Appointment[] | n
 }
 
 export async function saveAppointmentToSupabase(appointment: Partial<Appointment>): Promise<boolean> {
+  if (!isSupabaseConfigured) return false;
   try {
     const id = appointment.id || `APT-${Date.now()}`;
+    const cleanDate = sanitizeDate(
+      appointment.date,
+      new Date().toISOString().split("T")[0]
+    ) as string;
+
     const payload = {
       id,
       patient_id: appointment.patientId || null,
       patient_name: appointment.patientName || "Walk-in Patient",
       patient_contact: appointment.patientContact || null,
-      date: appointment.date || new Date().toISOString().split("T")[0],
+      date: cleanDate,
       time: appointment.time || "09:00 AM",
       purpose: appointment.purpose || "General Consultation",
       assigned_bhw: appointment.assignedBHW || "Duty Health Worker",
@@ -53,6 +61,13 @@ export async function saveAppointmentToSupabase(appointment: Partial<Appointment
     const { error } = await supabase.from("appointments").upsert(payload, { onConflict: "id" });
 
     if (error) {
+      // If foreign key constraint on patient_id fails, retry with patient_id = null
+      if (error.code === "23503") {
+        const { error: retryError } = await supabase
+          .from("appointments")
+          .upsert({ ...payload, patient_id: null }, { onConflict: "id" });
+        if (!retryError) return true;
+      }
       console.error("Supabase saveAppointment error:", error.message);
       return false;
     }
@@ -63,3 +78,20 @@ export async function saveAppointmentToSupabase(appointment: Partial<Appointment
     return false;
   }
 }
+
+export async function deleteAppointmentFromSupabase(id: string): Promise<boolean> {
+  if (!isSupabaseConfigured) return false;
+  try {
+    const { error } = await supabase.from("appointments").delete().eq("id", id);
+    if (error) {
+      console.warn("Supabase deleteAppointment error:", error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error("deleteAppointmentFromSupabase exception:", err);
+    return false;
+  }
+}
+
+

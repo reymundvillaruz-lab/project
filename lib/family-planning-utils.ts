@@ -1,6 +1,5 @@
 import {
   FPClient,
-  FPFollowUp,
   FPFollowUpStatus,
   FPDashboardStats,
 } from "@/types/family-planning";
@@ -77,8 +76,6 @@ export function calculateFPDashboardStats(clients: FPClient[]): FPDashboardStats
   const currentFPUsers = clients.filter(
     (c) => c.status === "Active User" || (c.status !== "Discontinued" && Boolean(c.currentMethod))
   ).length;
-
-  const todayStr = getTodayDateString();
 
   let upcomingFollowUps = 0;
   let followUpsDue = 0;

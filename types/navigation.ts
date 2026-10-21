@@ -1,5 +1,3 @@
-import { ComponentType } from "react";
-
 export type UserRole = "ADMINISTRATOR" | "BHW" | "PHYSICIAN" | "NURSE";
 
 export interface NavItem {

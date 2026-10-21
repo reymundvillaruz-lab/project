@@ -11,8 +11,6 @@ import {
   Users,
   Settings,
   Shield,
-  HelpCircle,
-  ExternalLink,
   FolderArchive,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";

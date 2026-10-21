@@ -1,7 +1,9 @@
-import { supabase } from "@/lib/supabase/client";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
 import { MaternalRecord } from "@/types/maternal-care";
+import { sanitizeDate } from "@/lib/utils";
 
 export async function fetchMaternalRecordsFromSupabase(): Promise<MaternalRecord[] | null> {
+  if (!isSupabaseConfigured) return null;
   try {
     const { data, error } = await supabase
       .from("maternal_records")
@@ -45,21 +47,36 @@ export async function fetchMaternalRecordsFromSupabase(): Promise<MaternalRecord
 }
 
 export async function saveMaternalRecordToSupabase(record: Partial<MaternalRecord>): Promise<boolean> {
+  if (!isSupabaseConfigured) return false;
   try {
     const id = record.id || `MAT-${Date.now()}`;
+    const cleanDob = sanitizeDate(record.dateOfBirth, "2000-01-01") as string;
+    const cleanRecordDate = sanitizeDate(
+      record.recordDate,
+      new Date().toISOString().split("T")[0]
+    ) as string;
+    const cleanLmp = sanitizeDate(
+      record.lmp,
+      new Date().toISOString().split("T")[0]
+    ) as string;
+    const cleanEdc = sanitizeDate(
+      record.edc,
+      new Date().toISOString().split("T")[0]
+    ) as string;
+
     const payload = {
       id,
       patient_name: record.patientName || "Maternal Patient",
-      date_of_birth: record.dateOfBirth || "2000-01-01",
+      date_of_birth: cleanDob,
       age: record.age || 24,
       address: record.address || "Barangay Health Center",
       contact_number: record.contactNumber || null,
       philhealth_no: record.philhealthNo || null,
-      record_date: record.recordDate || new Date().toISOString().split("T")[0],
+      record_date: cleanRecordDate,
       gravida: record.gravida || 1,
       para: record.para || 0,
-      lmp: record.lmp || new Date().toISOString().split("T")[0],
-      edc: record.edc || new Date().toISOString().split("T")[0],
+      lmp: cleanLmp,
+      edc: cleanEdc,
       gestational_age_weeks: record.gestationalAgeWeeks || null,
       tetanus_toxoid_status: record.tetanusToxoidStatus || "None",
       iron_folic_acid_supplementation: record.ironFolicAcidSupplementation || null,
@@ -73,6 +90,12 @@ export async function saveMaternalRecordToSupabase(record: Partial<MaternalRecor
 
     const { error } = await supabase.from("maternal_records").upsert(payload, { onConflict: "id" });
     if (error) {
+      if (error.code === "23503") {
+        const { error: retryError } = await supabase
+          .from("maternal_records")
+          .upsert({ ...payload, patient_id: null }, { onConflict: "id" });
+        if (!retryError) return true;
+      }
       console.error("Supabase saveMaternalRecord error:", error.message);
       return false;
     }
@@ -83,7 +106,9 @@ export async function saveMaternalRecordToSupabase(record: Partial<MaternalRecor
   }
 }
 
+
 export async function deleteMaternalRecordFromSupabase(id: string): Promise<boolean> {
+  if (!isSupabaseConfigured) return false;
   try {
     const { error } = await supabase.from("maternal_records").delete().eq("id", id);
     if (error) {
@@ -96,3 +121,4 @@ export async function deleteMaternalRecordFromSupabase(id: string): Promise<bool
     return false;
   }
 }
+
